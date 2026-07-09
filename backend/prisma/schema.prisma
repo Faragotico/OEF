@@ -1,0 +1,123 @@
+// ============================================================
+// OEF — Schema do banco de dados (Prisma)
+// Traduzido do Dicionário de Dados (seção 4.5 do documento)
+// Já incorpora apontamentos da banca:
+//   - telefone na tabela funcionario
+//   - nomenclatura padronizada: "funcionario" (não "colaborador")
+// ============================================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Empresa {
+  id      Int     @id @default(autoincrement()) @map("id_empresa")
+  nome    String
+  cnpj    String  @unique
+  contato String?
+
+  postos PostoTrabalho[]
+
+  @@map("empresa")
+}
+
+model PostoTrabalho {
+  id          Int     @id @default(autoincrement()) @map("id_posto")
+  nome        String
+  localizacao String?
+  empresaId   Int     @map("id_empresa")
+
+  // onDelete: Restrict = não deixa apagar uma empresa que ainda tem postos
+  empresa Empresa  @relation(fields: [empresaId], references: [id], onDelete: Restrict)
+  escalas Escala[]
+
+  @@map("posto_trabalho")
+}
+
+model Funcionario {
+  id                  Int     @id @default(autoincrement()) @map("id_funcionario")
+  nome                String
+  cpf                 String  @unique
+  telefone            String? // apontamento da banca (2º bim)
+  cargo               String
+  cargaHorariaSemanal Int     @map("carga_horaria_semanal")
+  status              Boolean @default(true) // true = ativo (RN01)
+
+  alocacoes Alocacao[]
+  ausencias Ausencia[]
+
+  @@map("funcionario")
+}
+
+model Regra {
+  id        Int    @id @default(autoincrement()) @map("id_regra")
+  descricao String
+  tipo      String // ex: 'escala', 'intervalo_interjornada', 'carga_horaria_semanal'
+  valor     String // ex: '5x1', '11', '44'
+
+  escalas Escala[]
+
+  @@map("regra")
+}
+
+model Turno {
+  id         Int      @id @default(autoincrement()) @map("id_turno")
+  descricao  String // ex: 'Manhã', 'Tarde', 'Noite'
+  horaInicio DateTime @map("hora_inicio") @db.Time()
+  horaFim    DateTime @map("hora_fim") @db.Time()
+
+  alocacoes Alocacao[]
+
+  @@map("turno")
+}
+
+model Escala {
+  id       Int      @id @default(autoincrement()) @map("id_escala")
+  dataInic DateTime @map("data_inic") @db.Date
+  dataFim  DateTime @map("data_fim") @db.Date
+  postoId  Int      @map("id_posto")
+  regraId  Int      @map("id_regra")
+
+  posto     PostoTrabalho @relation(fields: [postoId], references: [id], onDelete: Restrict)
+  regra     Regra         @relation(fields: [regraId], references: [id], onDelete: Restrict)
+  alocacoes Alocacao[]
+
+  @@map("escala")
+}
+
+model Alocacao {
+  id            Int      @id @default(autoincrement()) @map("id_alocacao")
+  data          DateTime @db.Date
+  ehSubstituido Boolean  @default(false) @map("eh_substituido")
+  funcionarioId Int      @map("id_funcionario")
+  escalaId      Int      @map("id_escala")
+  turnoId       Int      @map("id_turno")
+
+  funcionario Funcionario @relation(fields: [funcionarioId], references: [id], onDelete: Restrict)
+  // onDelete: Cascade = apagou a escala, as alocações dela vão junto (como no doc)
+  escala      Escala      @relation(fields: [escalaId], references: [id], onDelete: Cascade)
+  turno       Turno       @relation(fields: [turnoId], references: [id], onDelete: Restrict)
+
+  // Garante no banco: um funcionário não pode estar duas vezes
+  // no mesmo dia e turno (primeira linha de defesa das regras)
+  @@unique([funcionarioId, data, turnoId])
+  @@map("alocacao")
+}
+
+model Ausencia {
+  id            Int      @id @default(autoincrement()) @map("id_ausencia")
+  dataInic      DateTime @map("data_inic") @db.Date
+  dataFim       DateTime @map("data_fim") @db.Date
+  motivo        String
+  compensacao   String?
+  funcionarioId Int      @map("id_funcionario")
+
+  funcionario Funcionario @relation(fields: [funcionarioId], references: [id], onDelete: Cascade)
+
+  @@map("ausencia")
+}
