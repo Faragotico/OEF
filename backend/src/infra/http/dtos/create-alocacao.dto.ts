@@ -1,4 +1,5 @@
-import { IsBoolean, IsDateString, IsInt, IsOptional } from 'class-validator';
+import { IsBoolean, IsDate, IsInt, IsOptional } from 'class-validator';
+import { Type } from 'class-transformer';
 
 // DTO de criação da Alocacao.
 // Lembre: o DTO é o "contrato" do que o CLIENTE manda pela internet.
@@ -12,11 +13,9 @@ import { IsBoolean, IsDateString, IsInt, IsOptional } from 'class-validator';
 export class CreateAlocacaoDto {
   // Vem como texto ISO no JSON, ex: "2026-07-25".
   // @IsDateString garante que é uma data válida (recusa "abc" ou "2026-99-99").
-  @IsDateString(
-    {},
-    { message: 'data deve ser uma data válida no formato AAAA-MM-DD.' },
-  )
-  data: string;
+  @Type(() => Date)
+  @IsDate({ message: 'data deve ser uma data válida.' })
+  data: Date;
 
   @IsInt({ message: 'funcionarioId deve ser um número inteiro.' })
   funcionarioId: number;
