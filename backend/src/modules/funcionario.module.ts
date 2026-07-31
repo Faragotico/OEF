@@ -1,8 +1,8 @@
 import { Module } from '@nestjs/common';
-import { FuncionarioController } from './infra/http/controllers/funcionario.controller';
-import { FuncionarioService } from './domain/services/funcionario.service';
-import { FuncionarioRepository } from './domain/repositories/funcionario.repository';
-import { PrismaService } from './infra/database/prisma.service';
+import { FuncionarioController } from '../infra/http/controllers/funcionario.controller';
+import { FuncionarioService } from '../domain/services/funcionario.service';
+import { FuncionarioRepository } from '../domain/repositories/funcionario.repository';
+import { PrismaService } from '../infra/database/prisma.service';
 
 // O Module é a "lista de peças" desta funcionalidade. O NestJS lê isso
 // e sabe montar tudo: quando o controller pedir um FuncionarioService,

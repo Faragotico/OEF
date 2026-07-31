@@ -8,8 +8,8 @@ import {
   Patch,
   Post,
 } from '@nestjs/common';
-import { CreateAlocacaoDto } from '../dtos/create-alocacao.dto';
-import { UpdateAlocacaoDto } from '../dtos/update-alocacao.dto';
+import { CreateAlocacaoDto } from '../dtos/alocacao/create-alocacao.dto';
+import { UpdateAlocacaoDto } from '../dtos/alocacao/update-alocacao.dto';
 import { AlocacaoService } from 'src/domain/services/alocacao.service';
 import { AlocacaoPresenter } from '../presenters/alocacao.presenter';
 

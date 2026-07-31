@@ -25,7 +25,10 @@ export class FuncionarioRepository {
     return this.prisma.funcionario.findUnique({ where: { cpf } });
   }
 
-  update(id: number, data: Prisma.FuncionarioUpdateInput): Promise<Funcionario> {
+  update(
+    id: number,
+    data: Prisma.FuncionarioUpdateInput,
+  ): Promise<Funcionario> {
     return this.prisma.funcionario.update({ where: { id }, data });
   }
 

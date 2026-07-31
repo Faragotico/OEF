@@ -4,8 +4,8 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { FuncionarioRepository } from '../repositories/funcionario.repository';
-import { CreateFuncionarioDto } from '../../infra/http/dtos/create-funcionario.dto';
-import { UpdateFuncionarioDto } from '../../infra/http/dtos/update-funcionario.dto';
+import { CreateFuncionarioDto } from '../../infra/http/dtos/funcionario/create-funcionario.dto';
+import { UpdateFuncionarioDto } from '../../infra/http/dtos/funcionario/update-funcionario.dto';
 
 // O service é o CÉREBRO. Ele aplica as regras de negócio e decide o
 // que fazer. Repare: ele não sabe o que é uma requisição HTTP (isso é
@@ -45,7 +45,9 @@ export class FuncionarioService {
     if (dto.cpf) {
       const outro = await this.repository.findByCpf(dto.cpf);
       if (outro && outro.id !== id) {
-        throw new ConflictException('Já existe outro funcionário com este CPF.');
+        throw new ConflictException(
+          'Já existe outro funcionário com este CPF.',
+        );
       }
     }
     return this.repository.update(id, dto);

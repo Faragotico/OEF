@@ -4,8 +4,8 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { AlocacaoRepository } from '../repositories/alocacao.repository';
-import { CreateAlocacaoDto } from 'src/infra/http/dtos/create-alocacao.dto';
-import { UpdateAlocacaoDto } from 'src/infra/http/dtos/update-alocacao.dto';
+import { CreateAlocacaoDto } from 'src/infra/http/dtos/alocacao/create-alocacao.dto';
+import { UpdateAlocacaoDto } from 'src/infra/http/dtos/alocacao/update-alocacao.dto';
 import { Prisma } from '@prisma/client';
 
 // O service é o CÉREBRO. Ele aplica as regras de negócio e decide o
