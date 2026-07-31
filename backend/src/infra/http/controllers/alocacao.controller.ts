@@ -11,36 +11,42 @@ import {
 import { CreateAlocacaoDto } from '../dtos/create-alocacao.dto';
 import { UpdateAlocacaoDto } from '../dtos/update-alocacao.dto';
 import { AlocacaoService } from 'src/domain/services/alocacao.service';
+import { AlocacaoPresenter } from '../presenters/alocacao.presenter';
 
 @Controller('alocacoes')
 export class AlocacaoController {
   constructor(private readonly service: AlocacaoService) {}
 
   @Post()
-  create(@Body() dto: CreateAlocacaoDto) {
-    return this.service.create(dto);
+  async create(@Body() dto: CreateAlocacaoDto) {
+    const alocacao = await this.service.create(dto);
+    return AlocacaoPresenter.toHTTP(alocacao);
   }
 
   @Get()
-  findAll() {
-    return this.service.findAll();
+  async findAll() {
+    const alocacoes = await this.service.findAll();
+    return alocacoes.map((alocacao) => AlocacaoPresenter.toHTTP(alocacao));
   }
 
   @Get(':id')
-  findOne(@Param('id', ParseIntPipe) id: number) {
-    return this.service.findOne(id);
+  async findOne(@Param('id', ParseIntPipe) id: number) {
+    const alocacao = await this.service.findOne(id);
+    return AlocacaoPresenter.toHTTP(alocacao);
   }
 
   @Patch(':id')
-  update(
+  async update(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: UpdateAlocacaoDto,
   ) {
-    return this.service.update(id, dto);
+    const alocacao = await this.service.update(id, dto);
+    return AlocacaoPresenter.toHTTP(alocacao);
   }
 
   @Delete(':id')
-  remove(@Param('id', ParseIntPipe) id: number) {
-    return this.service.remove(id);
+  async remove(@Param('id', ParseIntPipe) id: number) {
+    const alocacao = await this.service.remove(id);
+    return AlocacaoPresenter.toHTTP(alocacao);
   }
 }

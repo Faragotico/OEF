@@ -12,7 +12,8 @@ import { Type } from 'class-transformer';
 // verdade?" NÃO é papel do DTO, é do service (regra de negócio).
 export class CreateAlocacaoDto {
   // Vem como texto ISO no JSON, ex: "2026-07-25".
-  // @IsDateString garante que é uma data válida (recusa "abc" ou "2026-99-99").
+  // @Type converte esse texto em Date (graças ao transform: true do
+  // ValidationPipe), e @IsDate confere se a conversão deu uma data válida.
   @Type(() => Date)
   @IsDate({ message: 'data deve ser uma data válida.' })
   data: Date;
