@@ -40,8 +40,12 @@ async function main() {
       { nome: 'Ana Paula Souza',     cpf: '52998224725', telefone: '(42) 99911-0001', cargo: 'Porteira',       cargaHorariaSemanal: 44, status: true },
       { nome: 'Carlos Eduardo Lima', cpf: '11144477735', telefone: '(42) 99911-0002', cargo: 'Porteiro',       cargaHorariaSemanal: 44, status: true },
       { nome: 'Fernanda Costa',      cpf: '86288366757', telefone: '(42) 99911-0003', cargo: 'Recepcionista',  cargaHorariaSemanal: 44, status: true },
-      { nome: 'João Pedro Alves',    cpf: '47752979782', telefone: '(42) 99911-0004', cargo: 'Porteiro',       cargaHorariaSemanal: 44, status: true },
-      { nome: 'Mariana Rocha',       cpf: '15705198743', telefone: '(42) 99911-0005', cargo: 'Recepcionista',  cargaHorariaSemanal: 44, status: false },
+      // Os CPFs destes dois vinham do documento como 47752979782 e
+      // 15705198743, mas ambos REPROVAM no dígito verificador (RNDoc01).
+      // Corrigidos aqui mantendo os 9 primeiros dígitos e recalculando
+      // os dois últimos. O documento precisa da mesma correção.
+      { nome: 'João Pedro Alves',    cpf: '47752979708', telefone: '(42) 99911-0004', cargo: 'Porteiro',       cargaHorariaSemanal: 44, status: true },
+      { nome: 'Mariana Rocha',       cpf: '15705198701', telefone: '(42) 99911-0005', cargo: 'Recepcionista',  cargaHorariaSemanal: 44, status: false },
     ],
   });
 

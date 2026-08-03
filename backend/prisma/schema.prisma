@@ -17,9 +17,9 @@ datasource db {
 
 model Empresa {
   id      Int     @id @default(autoincrement()) @map("id_empresa")
-  nome    String
-  cnpj    String  @unique
-  contato String?
+  nome    String  @db.VarChar(100)
+  cnpj    String  @unique @db.Char(14) // somente dígitos
+  contato String? @db.VarChar(100)
 
   postos PostoTrabalho[]
 
@@ -27,10 +27,10 @@ model Empresa {
 }
 
 model PostoTrabalho {
-  id          Int     @id @default(autoincrement()) @map("id_posto")
-  nome        String
-  localizacao String?
-  empresaId   Int     @map("id_empresa")
+  id          Int    @id @default(autoincrement()) @map("id_posto")
+  nome        String @db.VarChar(100)
+  localizacao String @map("local") @db.VarChar(150)
+  empresaId   Int    @map("id_empresa")
 
   // onDelete: Restrict = não deixa apagar uma empresa que ainda tem postos
   empresa Empresa  @relation(fields: [empresaId], references: [id], onDelete: Restrict)
@@ -40,11 +40,17 @@ model PostoTrabalho {
 }
 
 model Funcionario {
-  id                  Int     @id @default(autoincrement()) @map("id_funcionario")
-  nome                String
-  cpf                 String  @unique
-  telefone            String? // apontamento da banca (2º bim)
-  cargo               String
+  id   Int    @id @default(autoincrement()) @map("id_funcionario")
+  nome String @db.VarChar(100)
+  cpf  String @unique @db.Char(11) // somente dígitos
+
+  // telefone: apontamento da banca (2º bim). Não consta no DDL do
+  // documento — o Dicionário de Dados ainda precisa ganhar esta linha.
+  telefone String? @db.VarChar(20)
+  cargo    String  @db.VarChar(80)
+
+  // O limite real vem da tabela regra (RN04), não daqui. O CHECK do
+  // documento (> 0 e <= 168) é só o limite físico de horas na semana.
   cargaHorariaSemanal Int     @map("carga_horaria_semanal")
   status              Boolean @default(true) // true = ativo (RN01)
 
@@ -56,19 +62,25 @@ model Funcionario {
 
 model Regra {
   id        Int    @id @default(autoincrement()) @map("id_regra")
-  descricao String
-  tipo      String // ex: 'escala', 'intervalo_interjornada', 'carga_horaria_semanal'
-  valor     String // ex: '5x1', '11', '44'
+  descricao String @db.VarChar(500)
+  tipo      String @db.VarChar(50) // ex: 'escala', 'intervalo_interjornada'
+  valor     String @db.VarChar(50) // ex: '5x1', '11', '44'
 
   escalas Escala[]
 
+  // uq_regra do DDL: impede cadastrar a mesma regra duas vezes
+  @@unique([tipo, valor])
   @@map("regra")
 }
 
 model Turno {
-  id         Int      @id @default(autoincrement()) @map("id_turno")
-  descricao  String // ex: 'Manhã', 'Tarde', 'Noite'
-  horaInicio DateTime @map("hora_inicio") @db.Time()
+  id Int @id @default(autoincrement()) @map("id_turno")
+
+  // Nulável conforme o DDL (descricao VARCHAR(100), sem NOT NULL)
+  descricao String? @db.VarChar(100) // ex: 'Manhã', 'Tarde', 'Noite'
+
+  // A coluna do DDL é hora_inic (não hora_inicio)
+  horaInicio DateTime @map("hora_inic") @db.Time()
   horaFim    DateTime @map("hora_fim") @db.Time()
 
   alocacoes Alocacao[]
@@ -99,25 +111,29 @@ model Alocacao {
   turnoId       Int      @map("id_turno")
 
   funcionario Funcionario @relation(fields: [funcionarioId], references: [id], onDelete: Restrict)
-  // onDelete: Cascade = apagou a escala, as alocações dela vão junto (como no doc)
+  // onDelete: Cascade = apagou a escala, as alocações dela vão junto (como no DDL)
   escala      Escala      @relation(fields: [escalaId], references: [id], onDelete: Cascade)
   turno       Turno       @relation(fields: [turnoId], references: [id], onDelete: Restrict)
 
-  // Garante no banco: um funcionário não pode estar duas vezes
+  // uq_aloc_func_dia_turno: um funcionário não pode estar duas vezes
   // no mesmo dia e turno (primeira linha de defesa das regras)
   @@unique([funcionarioId, data, turnoId])
   @@map("alocacao")
 }
 
 model Ausencia {
-  id            Int      @id @default(autoincrement()) @map("id_ausencia")
-  dataInic      DateTime @map("data_inic") @db.Date
-  dataFim       DateTime @map("data_fim") @db.Date
-  motivo        String
-  compensacao   String?
-  funcionarioId Int      @map("id_funcionario")
+  id          Int      @id @default(autoincrement()) @map("id_ausencia")
+  dataInic    DateTime @map("data_inic") @db.Date
+  dataFim     DateTime @map("data_fim") @db.Date
+  motivo      String   @db.VarChar(200)
+  compensacao String?  @db.VarChar(200)
 
-  funcionario Funcionario @relation(fields: [funcionarioId], references: [id], onDelete: Cascade)
+  funcionarioId Int @map("id_funcionario")
+
+  // onDelete: Restrict conforme o DDL (fk_ausencia_funcionario).
+  // Antes estava Cascade, o que apagaria o histórico de ausências ao
+  // excluir o funcionário — registro trabalhista não deve ser perdido.
+  funcionario Funcionario @relation(fields: [funcionarioId], references: [id], onDelete: Restrict)
 
   @@map("ausencia")
 }

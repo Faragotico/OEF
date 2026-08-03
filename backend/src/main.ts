@@ -19,9 +19,13 @@ async function bootstrap() {
 
   // CORS: permite que o frontend (porta 3000) chame este backend (3001).
   // Sem isso, o navegador bloqueia a chamada por segurança.
-  app.enableCors({ origin: process.env.FRONTEND_URL ?? 'http://localhost:3000' });
+  app.enableCors({
+    origin: process.env.FRONTEND_URL ?? 'http://localhost:3000',
+  });
 
   await app.listen(process.env.PORT ?? 3001);
-  console.log(`🚀 Backend rodando em http://localhost:${process.env.PORT ?? 3001}`);
+  console.log(
+    `🚀 Backend rodando em http://localhost:${process.env.PORT ?? 3001}`,
+  );
 }
 bootstrap();
