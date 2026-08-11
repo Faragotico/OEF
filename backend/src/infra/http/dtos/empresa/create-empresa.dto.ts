@@ -6,6 +6,7 @@ import {
   MaxLength,
   MinLength,
 } from 'class-validator';
+import { IsCnpj } from '../../validators/is-cnpj.validator';
 
 // DTO = Data Transfer Object. É o "contrato" do que o cliente pode
 // mandar ao criar uma empresa. Os decorators (@IsString etc.) são
@@ -19,10 +20,18 @@ export class CreateEmpresaDto {
   nome: string;
 
   @IsString()
-  @Length(14, 14, { message: 'O CNPJ deve ter exatamente 14 dígitos.' })
-  @Matches(/^\d{14}$/, {
-    message: 'O CNPJ deve conter somente dígitos, sem pontos ou barras.',
+  @Length(14, 14, { message: 'O CNPJ deve ter exatamente 14 caracteres.' })
+  // CNPJ alfanumérico (2026+): 12 posições com letra MAIÚSCULA ou dígito,
+  // seguidas de 2 dígitos verificadores. Sem máscara (pontos/barra/traço).
+  @Matches(/^[A-Z\d]{12}\d{2}$/, {
+    message:
+      'O CNPJ deve ter 12 caracteres alfanuméricos (A-Z, 0-9) + 2 dígitos, sem máscara.',
   })
+  // @IsCnpj confere o dígito verificador. Mantemos @Length e @Matches
+  // junto de propósito: eles dão mensagens específicas de formato,
+  // enquanto o @IsCnpj reclama só do dígito. Assim o usuário sabe se
+  // errou o tamanho/formato ou se digitou um número inexistente.
+  @IsCnpj()
   cnpj: string;
 
   @IsOptional() // contato pode não vir (é String? no schema)
