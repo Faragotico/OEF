@@ -4,24 +4,8 @@ import {
   ValidationOptions,
 } from 'class-validator';
 
-// ============================================================
-// VALIDADOR DE CNPJ — explicado passo a passo
-// ============================================================
-//
-// O que é o "dígito verificador"? São os 2 últimos números do CNPJ.
-// Eles não são aleatórios: saem de uma CONTA feita com os outros
-// números. Se você digitar um CNPJ errado, essa conta não bate, e a
-// gente descobre o erro na hora — sem nem consultar a Receita.
-//
-// A partir de 2026 o CNPJ pode ter LETRAS nas 12 primeiras posições.
-// Os 2 últimos (os verificadores) continuam sendo números.
-// Exemplo que vamos seguir nos comentários: "12ABC34501DE35"
-//   -> "12ABC34501DE" são as 12 posições (a "base")
-//   -> "35" são os 2 dígitos verificadores
-// ============================================================
-
-// Todo caractere tem um número secreto no computador (a "tabela ASCII").
-// O '0' vale 48. Guardamos esse 48 aqui pra usar já já.
+// (a "tabela ASCII").
+// O '0' vale 48. Guardamos esse 48 aqui pra usar.
 const VALOR_BASE = '0'.charCodeAt(0); // = 48
 
 // "Pesos": cada posição do CNPJ é multiplicada por um desses números.
@@ -33,11 +17,11 @@ const PESOS = [6, 5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2];
  * Devolve os dois como texto, ex: "35".
  */
 function calculaDv(base12: string): string {
-  // Vamos acumular duas somas: uma pro 1º dígito, outra pro 2º.
+  // duas somas: uma pro 1º dígito, outra pro 2º.
   let somaDv1 = 0;
   let somaDv2 = 0;
 
-  // Percorremos as 12 posições, uma por uma (i vai de 0 até 11).
+  // Percorremos as 12 posições.
   for (let i = 0; i < 12; i++) {
     // 1) Pega o número ASCII do caractere na posição i e tira 48.
     //    Assim: '0' (48) vira 0, '9' (57) vira 9, 'A' (65) vira 17...
@@ -53,7 +37,6 @@ function calculaDv(base12: string): string {
     somaDv2 += valor * PESOS[i];
   }
 
-  // Agora a mágica do "módulo 11":
   // - soma % 11 é o RESTO da divisão da soma por 11 (o que sobra).
   // - Se esse resto for 0 ou 1, o dígito é 0 (regra especial).
   // - Senão, o dígito é 11 menos o resto.
@@ -92,11 +75,6 @@ export function ehCnpjValido(cnpj: string): boolean {
   return dvInformado === dvCalculado;
 }
 
-// ============================================================
-// A partir daqui é a "ligação" com o NestJS. Você não precisa mexer:
-// é o que transforma a função acima no decorator @IsCnpj() que a gente
-// escreve no DTO. É a mesma receita do @IsCpf().
-// ============================================================
 export function IsCnpj(validationOptions?: ValidationOptions) {
   return function (object: object, propertyName: string) {
     registerDecorator({
@@ -111,7 +89,7 @@ export function IsCnpj(validationOptions?: ValidationOptions) {
           return typeof value === 'string' && ehCnpjValido(value);
         },
         // A mensagem de erro que o usuário recebe se o CNPJ for inválido.
-        defaultMessage(args: ValidationArguments): string {
+        defa  ultMessage(args: ValidationArguments): string {
           return `${args.property} não é um CNPJ válido: o dígito verificador não confere.`;
         },
       },

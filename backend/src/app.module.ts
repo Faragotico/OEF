@@ -5,6 +5,7 @@ import { FuncionarioModule } from './modules/funcionario.module';
 import { AlocacaoModule } from './modules/alocacao.module';
 import { EmpresaModule } from './modules/empresa.module';
 import { PostoTrabalhoModule } from './modules/posto-trabalho.module';
+import { RegraModule } from './modules/regra.module';
 
 // O módulo raiz. A única mudança em relação ao que o Nest gerou é
 // importar os modules na lista de imports — assim o Nest
@@ -15,6 +16,7 @@ import { PostoTrabalhoModule } from './modules/posto-trabalho.module';
     AlocacaoModule,
     EmpresaModule,
     PostoTrabalhoModule,
+    RegraModule,
   ],
   controllers: [AppController],
   providers: [AppService],
