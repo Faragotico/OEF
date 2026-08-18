@@ -89,7 +89,7 @@ export function IsCnpj(validationOptions?: ValidationOptions) {
           return typeof value === 'string' && ehCnpjValido(value);
         },
         // A mensagem de erro que o usuário recebe se o CNPJ for inválido.
-        defa  ultMessage(args: ValidationArguments): string {
+        defaultMessage(args: ValidationArguments): string {
           return `${args.property} não é um CNPJ válido: o dígito verificador não confere.`;
         },
       },
