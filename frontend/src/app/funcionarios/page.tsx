@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { apiGet } from "@/lib/api";
 
 type Funcionario = {
@@ -16,11 +17,19 @@ export default async function FuncionariosPage() {
   return (
     <main className="min-h-screen bg-zinc-50 px-6 py-10 dark:bg-black sm:px-16">
       <div className="mx-auto max-w-4xl">
-        <h1 className="mb-6 text-2xl font-semibold text-black dark:text-zinc-50">
-          Funcionários
-        </h1>
+        <div className="mb-6 flex items-center justify-between">
+          <h1 className="text-2xl font-semibold text-black dark:text-zinc-50">
+            Funcionários
+          </h1>
+          <Link
+            href="/funcionarios/novo"
+            className="rounded-full bg-[#0f172a] px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[#1e293b]"
+          >
+            + Novo funcionário
+          </Link>
+        </div>
 
-        <div className="overflow-hidden rounded-lg border border-black/[.08] dark:border-white/[.145]">
+        <div className="overflow-x-auto rounded-lg border border-black/[.08] dark:border-white/[.145]">
           <table className="w-full border-collapse text-left text-sm">
             <thead className="bg-black/[.03] dark:bg-white/[.05]">
               <tr>

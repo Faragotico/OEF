@@ -11,6 +11,16 @@ import {
 class HoraFimDepoisConstraint implements ValidatorConstraintInterface {
   validate(horaFim: string, args: ValidationArguments) {
     const horaInicio = (args.object as any)[args.constraints[0]];
+
+    // Em um PATCH parcial (ex: só { horaFim: "10:00" }), horaInicio pode
+    // não vir no corpo da requisição. Aqui não temos como saber o valor
+    // já salvo no banco, então não reprovamos por conta disso — quem faz
+    // essa comparação nesse caso é o TurnoService.update, que busca o
+    // registro existente antes de validar. Sem este `if`, todo PATCH que
+    // mexesse só em horaFim (ou só em horaInicio) seria recusado à toa,
+    // mesmo sendo uma atualização legítima.
+    if (horaInicio === undefined) return true;
+
     return typeof horaFim === 'string' && horaFim > horaInicio;
   }
   defaultMessage() {

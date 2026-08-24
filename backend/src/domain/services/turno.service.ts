@@ -2,12 +2,13 @@ import {
   ConflictException,
   Injectable,
   NotFoundException,
+  BadRequestException,
 } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { TurnoRepository } from '../repositories/turno.repository';
 import { CreateTurnoDto } from 'src/infra/http/dtos/turno/create-turno.dto';
 import { UpdateTurnoDto } from 'src/infra/http/dtos/turno/update-turno.dto';
-import { parseTime } from 'src/helpers/date.helpers';
+import { parseTime, formatTime } from 'src/helpers/date.helpers';
 
 // O service é o CÉREBRO: aplica as regras de negócio e decide o que
 // fazer. Não sabe o que é requisição HTTP (controller) nem como o
@@ -41,7 +42,24 @@ export class TurnoService {
   }
 
   async update(id: number, dto: UpdateTurnoDto) {
-    await this.findOne(id);
+    const existente = await this.findOne(id);
+
+    // O @Validate do CreateTurnoDto não consegue garantir horaFim >
+    // horaInicio num PATCH parcial (ex: corpo só com { horaFim: "10:00" }),
+    // porque ele só enxerga o que veio na requisição, não o que já está
+    // salvo. Por isso ele deixa passar quando falta um dos dois lados —
+    // e AQUI, que tem acesso ao registro existente, é o lugar certo pra
+    // fazer a checagem de verdade, com os valores efetivos (o que veio
+    // no DTO, senão o que já estava no banco).
+    const horaInicioEfetiva = dto.horaInicio ?? formatTime(existente.horaInicio);
+    const horaFimEfetiva = dto.horaFim ?? formatTime(existente.horaFim);
+
+    if (horaFimEfetiva <= horaInicioEfetiva) {
+      throw new BadRequestException(
+        'horaFim deve ser posterior a horaInicio.',
+      );
+    }
+
     // update é parcial: só converte a hora se ela veio no corpo.
     return this.repository.update(id, {
       descricao: dto.descricao,
