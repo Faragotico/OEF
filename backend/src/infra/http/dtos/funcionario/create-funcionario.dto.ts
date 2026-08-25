@@ -2,6 +2,7 @@ import {
   IsBoolean,
   IsInt,
   IsOptional,
+  IsPositive,
   IsString,
   Length,
   Matches,
@@ -53,4 +54,21 @@ export class CreateFuncionarioDto {
   @IsOptional()
   @IsBoolean()
   status?: boolean;
+
+  // Turno pessoal fixo do funcionário. Opcional porque um funcionário
+  // recém-cadastrado pode ainda não ter turno definido — mas sem ele,
+  // o motor de geração automática de escala não sabe em qual horário
+  // colocá-lo (ver GeracaoEscalaService). Não se aplica a um coringa
+  // (ver abaixo): o motor decide o turno dele dia a dia.
+  @IsOptional()
+  @IsInt({ message: 'turnoPadraoId deve ser um número inteiro.' })
+  @IsPositive({ message: 'turnoPadraoId deve ser um número positivo.' })
+  turnoPadraoId?: number;
+
+  // Funcionário "coringa": não tem turno fixo, cobre o horário de quem
+  // estiver de folga no dia (ver GeracaoEscalaService). Se marcado,
+  // turnoPadraoId é ignorado pelo motor de geração.
+  @IsOptional()
+  @IsBoolean()
+  coringa?: boolean;
 }

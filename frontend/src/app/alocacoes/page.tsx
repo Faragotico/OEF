@@ -1,11 +1,18 @@
 import { apiGet } from "@/lib/api";
+import { AlocacoesFilter } from "@/components/alocacoes-filter";
 
-type Funcionario = { id: number; nome: string };
+type Funcionario = { id: number; nome: string; coringa: boolean };
 type Turno = {
   id: number;
   descricao: string | null;
   horaInicio: string;
   horaFim: string;
+};
+type Escala = {
+  id: number;
+  dataInic: string;
+  dataFim: string;
+  posto?: { nome: string };
 };
 type Alocacao = {
   id: number;
@@ -17,57 +24,32 @@ type Alocacao = {
 };
 
 export default async function AlocacoesPage() {
-  const [alocacoes, funcionarios, turnos] = await Promise.all([
+  const [alocacoes, funcionarios, turnos, escalas] = await Promise.all([
     apiGet<Alocacao[]>("/alocacoes"),
     apiGet<Funcionario[]>("/funcionarios"),
     apiGet<Turno[]>("/turno"),
+    apiGet<Escala[]>("/escalas"),
   ]);
 
-  const funcionarioById = new Map(funcionarios.map((f) => [f.id, f.nome]));
-  const turnoById = new Map(
-    turnos.map((t) => [t.id, t.descricao ?? `${t.horaInicio}–${t.horaFim}`]),
-  );
-
   return (
-    <main className="min-h-screen bg-zinc-50 px-6 py-10 dark:bg-black sm:px-16">
-      <div className="mx-auto max-w-4xl">
-        <h1 className="mb-6 text-2xl font-semibold text-black dark:text-zinc-50">
-          Alocações
-        </h1>
-
-        <div className="overflow-x-auto rounded-lg border border-black/[.08] dark:border-white/[.145]">
-          <table className="w-full border-collapse text-left text-sm">
-            <thead className="bg-black/[.03] dark:bg-white/[.05]">
-              <tr>
-                <th className="px-4 py-3 font-medium">Data</th>
-                <th className="px-4 py-3 font-medium">Funcionário</th>
-                <th className="px-4 py-3 font-medium">Turno</th>
-                <th className="px-4 py-3 font-medium">Escala</th>
-                <th className="px-4 py-3 font-medium">Substituído?</th>
-              </tr>
-            </thead>
-            <tbody>
-              {alocacoes.map((a) => (
-                <tr
-                  key={a.id}
-                  className="border-t border-black/[.08] dark:border-white/[.145]"
-                >
-                  <td className="px-4 py-3">{a.data}</td>
-                  <td className="px-4 py-3">
-                    {funcionarioById.get(a.funcionarioId) ?? a.funcionarioId}
-                  </td>
-                  <td className="px-4 py-3">
-                    {turnoById.get(a.turnoId) ?? a.turnoId}
-                  </td>
-                  <td className="px-4 py-3">#{a.escalaId}</td>
-                  <td className="px-4 py-3">
-                    {a.ehSubstituido ? "Sim" : "Não"}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+    <main className="min-h-screen bg-zinc-50 px-8 py-8 dark:bg-black">
+      <div className="mx-auto max-w-5xl">
+        <div className="mb-6">
+          <h1 className="text-2xl font-semibold text-black dark:text-zinc-50">
+            Alocações
+          </h1>
+          <p className="text-sm text-zinc-500 dark:text-zinc-400">
+            Todas as alocações já geradas — use os filtros abaixo pra
+            encontrar o que precisa
+          </p>
         </div>
+
+        <AlocacoesFilter
+          alocacoes={alocacoes}
+          funcionarios={funcionarios}
+          turnos={turnos}
+          escalas={escalas}
+        />
       </div>
     </main>
   );

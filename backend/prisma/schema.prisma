@@ -54,6 +54,22 @@ model Funcionario {
   cargaHorariaSemanal Int     @map("carga_horaria_semanal")
   status              Boolean @default(true) // true = ativo (RN01)
 
+  // Turno "de casa" do funcionário — o horário que ele trabalha na
+  // maioria dos dias (ex: Pedro sempre 07:45-14:00). O motor de geração
+  // automática usa isso pra fixar cada pessoa no próprio horário e só
+  // decidir quais dias ela folga, em vez de rodiziar turnos diferentes
+  // entre as pessoas — é assim que a escala é montada na prática.
+  turnoPadraoId Int?   @map("id_turno_padrao")
+  turnoPadrao   Turno? @relation(fields: [turnoPadraoId], references: [id], onDelete: SetNull)
+
+  // "Coringa": funcionário sem horário fixo, que existe pra COBRIR o
+  // turno de quem estiver de folga no dia (visto nas escalas reais —
+  // ex: o "ALCIDES" da escala UVARANAS, que trabalha um horário
+  // diferente a cada dia, sempre o de quem folgou). turnoPadraoId não
+  // é usado pra esse tipo de funcionário: o motor decide o turno dele
+  // dia a dia, conforme quem precisa de cobertura.
+  coringa Boolean @default(false)
+
   alocacoes Alocacao[]
   ausencias Ausencia[]
 
@@ -84,6 +100,9 @@ model Turno {
   horaFim    DateTime @map("hora_fim") @db.Time()
 
   alocacoes Alocacao[]
+  // Funcionários que têm este turno como padrão pessoal (ver
+  // Funcionario.turnoPadraoId).
+  funcionariosComTurnoPadrao Funcionario[]
 
   @@map("turno")
 }

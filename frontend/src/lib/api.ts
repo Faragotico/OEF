@@ -41,3 +41,33 @@ export async function apiPost<T>(path: string, body: unknown): Promise<T> {
 
   return res.json();
 }
+
+export async function apiPatch<T>(path: string, body: unknown): Promise<T> {
+  const res = await fetch(`${API_URL}${path}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+
+  if (!res.ok) {
+    const data = await res.json().catch(() => null);
+    throw new Error(
+      extractErrorMessage(data, `Erro ${res.status} ao atualizar dados.`),
+    );
+  }
+
+  return res.json();
+}
+
+export async function apiDelete<T>(path: string): Promise<T> {
+  const res = await fetch(`${API_URL}${path}`, { method: "DELETE" });
+
+  if (!res.ok) {
+    const data = await res.json().catch(() => null);
+    throw new Error(
+      extractErrorMessage(data, `Erro ${res.status} ao remover dados.`),
+    );
+  }
+
+  return res.json();
+}

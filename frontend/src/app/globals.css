@@ -20,7 +20,115 @@
 }
 
 body {
-  background: var(--background);
+  background-color: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  /* A Geist Sans já era carregada em layout.tsx (--font-geist-sans),
+     mas essa regra sobrescrevia tudo com Arial puro — a fonte nunca
+     aparecia de fato. Usar a variável é o que dá a esse texto o
+     acabamento "desenhado", em vez de fonte de sistema genérica. */
+  font-family: var(--font-sans), Arial, Helvetica, sans-serif;
+  /* Textura sutil de pontos — dá um acabamento "desenhado à mão" no
+     fundo sem competir com os cards/tabelas por cima. Fixo (não rola
+     junto com o conteúdo) pra não ficar "nervoso" em telas longas. */
+  background-image: radial-gradient(
+    circle,
+    color-mix(in srgb, #dc2626 22%, transparent) 1.5px,
+    transparent 1.5px
+  );
+  background-size: 24px 24px;
+  background-attachment: fixed;
+}
+
+.dark body {
+  background-image: radial-gradient(
+    circle,
+    color-mix(in srgb, #dc2626 14%, transparent) 1.5px,
+    transparent 1.5px
+  );
+}
+
+/* Cor de destaque nativa dos inputs (checkbox/radio/date/time) — o
+   azul padrão do navegador quebrava a identidade vermelha bem no
+   detalhe que o usuário mais olha ao preencher um formulário. */
+input[type="checkbox"],
+input[type="radio"],
+input[type="date"],
+input[type="time"] {
+  accent-color: #dc2626;
+}
+
+/* Entrada suave pra cards e seções — aplicar via classe
+   "animate-fade-in-up", com "animation-delay" inline pra escalonar
+   uma lista (grid de postos, chips de funcionário etc). */
+@keyframes fade-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.animate-fade-in-up {
+  animation: fade-in-up 0.4s cubic-bezier(0.2, 0.7, 0.3, 1) both;
+}
+
+/* "Levantar" no hover, quadrado — complementa o efeito de "afundar"
+   que os botões já tinham no active. O card parece flutuar um pouco
+   antes de ser pressionado, reforçando a textura tátil do estilo. */
+.oef-lift {
+  transition: transform 150ms ease, box-shadow 150ms ease;
+}
+.oef-lift:hover {
+  transform: translate(-2px, -2px);
+  box-shadow: 7px 7px 0 0 #000;
+}
+
+/* Spinner quadrado e "travado" em 4 posições (em vez de girar suave)
+   — combina com a identidade neobrutalista quadrada/dura do resto do
+   sistema em vez de um spinner circular genérico. */
+@keyframes spin-square {
+  to {
+    transform: rotate(360deg);
+  }
+}
+.spinner-square {
+  display: inline-block;
+  width: 11px;
+  height: 11px;
+  flex: none;
+  background: currentColor;
+  animation: spin-square 0.8s infinite steps(4);
+}
+
+/* Seleção de texto e foco de teclado na cor da marca — reforça a
+   identidade vermelha/quadrada até nesses detalhes, em vez de deixar
+   o azul padrão do navegador. */
+::selection {
+  background: #dc2626;
+  color: #ffffff;
+}
+
+:focus-visible {
+  outline: 3px solid #dc2626;
+  outline-offset: 2px;
+}
+
+/* Scrollbar fina em vermelho/preto pros contêineres com overflow-x
+   (tabelas e grades de escala) — no Firefox e no Chrome/Edge/Safari. */
+* {
+  scrollbar-color: #dc2626 transparent;
+  scrollbar-width: thin;
+}
+*::-webkit-scrollbar {
+  height: 10px;
+  width: 10px;
+}
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+*::-webkit-scrollbar-thumb {
+  background-color: #dc2626;
+  border: 2px solid transparent;
 }

@@ -5,20 +5,34 @@ import { PrismaService } from '../../infra/database/prisma.service';
 // O repository é o único lugar do sistema que conhece o Prisma.
 // Ele NÃO decide nada — só executa consultas. Regras de negócio
 // (ex: "CPF pode repetir?") não moram aqui, moram no service.
+//
+// create/update agora usam os tipos "Unchecked": desde que o
+// Funcionario ganhou o FK turnoPadraoId, o tipo "checked" do Prisma
+// passaria a exigir a forma aninhada (turnoPadrao: { connect: {...} } })
+// em vez do id cru — o Unchecked aceita turnoPadraoId direto, igual ao
+// resto dos repositories deste projeto (Alocacao, Turno, Regra etc.).
 @Injectable()
 export class FuncionarioRepository {
   constructor(private readonly prisma: PrismaService) {}
 
-  create(data: Prisma.FuncionarioCreateInput): Promise<Funcionario> {
-    return this.prisma.funcionario.create({ data });
+  private readonly include = { turnoPadrao: true };
+
+  create(data: Prisma.FuncionarioUncheckedCreateInput): Promise<Funcionario> {
+    return this.prisma.funcionario.create({ data, include: this.include });
   }
 
   findAll(): Promise<Funcionario[]> {
-    return this.prisma.funcionario.findMany({ orderBy: { nome: 'asc' } });
+    return this.prisma.funcionario.findMany({
+      orderBy: { nome: 'asc' },
+      include: this.include,
+    });
   }
 
   findById(id: number): Promise<Funcionario | null> {
-    return this.prisma.funcionario.findUnique({ where: { id } });
+    return this.prisma.funcionario.findUnique({
+      where: { id },
+      include: this.include,
+    });
   }
 
   findByCpf(cpf: string): Promise<Funcionario | null> {
@@ -27,9 +41,13 @@ export class FuncionarioRepository {
 
   update(
     id: number,
-    data: Prisma.FuncionarioUpdateInput,
+    data: Prisma.FuncionarioUncheckedUpdateInput,
   ): Promise<Funcionario> {
-    return this.prisma.funcionario.update({ where: { id }, data });
+    return this.prisma.funcionario.update({
+      where: { id },
+      data,
+      include: this.include,
+    });
   }
 
   delete(id: number): Promise<Funcionario> {

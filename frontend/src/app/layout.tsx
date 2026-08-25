@@ -22,12 +22,14 @@ export const metadata: Metadata = {
   icons: {
     icon: [
       { url: "/favicon.ico" },
+      { url: "/favicon-16x16.png", sizes: "16x16", type: "image/png" },
+      { url: "/favicon-32x32.png", sizes: "32x32", type: "image/png" },
       { url: "/android-chrome-192x192.png", sizes: "192x192", type: "image/png" },
       { url: "/android-chrome-512x512.png", sizes: "512x512", type: "image/png" },
     ],
     apple: [{ url: "/apple-touch-icon.png" }],
   },
-  themeColor: "#0f172a",
+  themeColor: "#7f1d1d",
 };
 
 const themeInitScript = `
@@ -52,26 +54,37 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
       </head>
-      <body className="min-h-full flex flex-col">
-        {/* Header sempre na cor da marca (navy do logo), independente do
-            tema claro/escuro escolhido pro conteúdo. */}
-        <header className="flex items-center justify-between gap-6 bg-[#0f172a] px-6 py-3">
-          <div className="flex items-center gap-2">
-            <Image
-              src="/android-chrome-192x192.png"
-              alt="OEF"
-              width={28}
-              height={28}
-              className="rounded"
-            />
-            <span className="text-sm font-semibold tracking-wide text-white">
-              OEF
-            </span>
-          </div>
-          <Nav />
-          <ThemeToggle />
-        </header>
-        {children}
+      <body className="min-h-full">
+        {/* Sidebar sempre na cor da marca (vermelho), com bordas retas e
+            grossas — identidade visual "quadrada", sem minimalismo. */}
+        <div className="flex min-h-screen">
+          <aside className="sticky top-0 flex h-screen w-64 flex-shrink-0 flex-col justify-between overflow-y-auto border-r-4 border-black bg-[#7f1d1d] px-4 py-6">
+            <div>
+              <div className="mb-1 flex items-center gap-2 px-2">
+                <Image
+                  src="/android-chrome-192x192.png"
+                  alt="OEF"
+                  width={28}
+                  height={28}
+                />
+                <span className="text-base font-black uppercase tracking-wide leading-tight text-white">
+                  OEF Sistema
+                </span>
+              </div>
+              <p className="mb-6 px-2 text-xs font-medium text-white/60">
+                Gerenciamento de Escalas
+              </p>
+              <Nav />
+            </div>
+
+            <div className="flex flex-col items-start gap-3 px-2">
+              <ThemeToggle />
+              <p className="text-xs text-white/40">Versão 1.0.0</p>
+            </div>
+          </aside>
+
+          <div className="min-w-0 flex-1">{children}</div>
+        </div>
       </body>
     </html>
   );

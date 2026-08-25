@@ -7,6 +7,8 @@ import { EmpresaModule } from './modules/empresa.module';
 import { PostoTrabalhoModule } from './modules/posto-trabalho.module';
 import { RegraModule } from './modules/regra.module';
 import { TurnoModule } from './modules/turno.module';
+import { EscalaModule } from './modules/escala.module';
+import { AusenciaModule } from './modules/ausencia.module';
 
 // O módulo raiz. A única mudança em relação ao que o Nest gerou é
 // importar os modules na lista de imports — assim o Nest
@@ -19,6 +21,8 @@ import { TurnoModule } from './modules/turno.module';
     PostoTrabalhoModule,
     RegraModule,
     TurnoModule,
+    EscalaModule,
+    AusenciaModule,
   ],
   controllers: [AppController],
   providers: [AppService],
