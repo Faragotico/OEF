@@ -75,15 +75,18 @@ function IconCalendar() {
   );
 }
 
+// Ordem segue o fluxo de cadastro, de quem depende de quem: Empresa
+// existe antes de Posto, Posto antes de Turno e Funcionário, e as duas
+// telas de uso do dia a dia (Escalas, Alocações) ficam no fim.
 const links: { href: string; label: string; icon: () => ReactNode }[] = [
-  { href: "/funcionarios", label: "Funcionários", icon: IconUsers },
-  { href: "/ausencias", label: "Ausências", icon: IconUserOff },
   { href: "/empresas", label: "Empresas", icon: IconBuilding },
+  { href: "/regras", label: "Regras", icon: IconFileText },
   { href: "/postos", label: "Postos", icon: IconMapPin },
   { href: "/turnos", label: "Turnos", icon: IconClock },
-  { href: "/regras", label: "Regras", icon: IconFileText },
-  { href: "/alocacoes", label: "Alocações", icon: IconClipboardList },
+  { href: "/funcionarios", label: "Funcionários", icon: IconUsers },
+  { href: "/ausencias", label: "Ausências", icon: IconUserOff },
   { href: "/escalas", label: "Escalas", icon: IconCalendar },
+  { href: "/alocacoes", label: "Alocações", icon: IconClipboardList },
 ];
 
 // Navegação lateral (sidebar): item ativo em bloco preto sólido (bordas

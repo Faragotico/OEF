@@ -3,24 +3,33 @@
 import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { apiPost } from "@/lib/api";
+import { formatarTelefone } from "@/lib/telefone";
+import {
+  type CamposEscala,
+  FuncionarioCamposEscala,
+} from "@/components/funcionario-campos-escala";
 
 type Turno = {
   id: number;
   descricao: string | null;
   horaInicio: string;
   horaFim: string;
+  postoId: number | null;
 };
+type Posto = { id: number; nome: string; localizacao: string };
 
 const inputClass =
   "border-2 border-black bg-white px-3 py-2 text-sm text-black dark:bg-zinc-900 dark:text-white";
 
-function turnoLabel(t: Turno) {
-  return t.descricao
-    ? `${t.descricao} (${t.horaInicio}–${t.horaFim})`
-    : `${t.horaInicio}–${t.horaFim}`;
-}
-
-export function NovoFuncionarioForm({ turnos }: { turnos: Turno[] }) {
+export function NovoFuncionarioForm({
+  turnos,
+  postos,
+  onSalvo,
+}: {
+  turnos: Turno[];
+  postos: Posto[];
+  onSalvo?: () => void;
+}) {
   const router = useRouter();
   const [form, setForm] = useState({
     nome: "",
@@ -29,8 +38,13 @@ export function NovoFuncionarioForm({ turnos }: { turnos: Turno[] }) {
     cargo: "",
     cargaHorariaSemanal: 44,
     status: true,
+    postoId: "",
+  });
+  const [escala, setEscala] = useState<CamposEscala>({
     turnoPadraoId: "",
     coringa: false,
+    turnosHabilitadosIds: [],
+    diasSemanaVetados: [],
   });
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -48,12 +62,16 @@ export function NovoFuncionarioForm({ turnos }: { turnos: Turno[] }) {
         cargo: form.cargo,
         cargaHorariaSemanal: Number(form.cargaHorariaSemanal),
         status: form.status,
-        turnoPadraoId: form.turnoPadraoId
-          ? Number(form.turnoPadraoId)
-          : undefined,
-        coringa: form.coringa,
+        postoId: form.postoId ? Number(form.postoId) : undefined,
+        // "coringa" não é mais um campo do cadastro: o que vai pro
+        // servidor é o dado que o define — sem turno de casa, com
+        // habilitações.
+        turnoPadraoId: escala.turnoPadraoId ? Number(escala.turnoPadraoId) : undefined,
+        turnosHabilitadosIds: escala.turnosHabilitadosIds,
+        diasSemanaVetados: escala.diasSemanaVetados,
       });
-      router.push("/funcionarios");
+      if (onSalvo) onSalvo();
+      else router.push("/funcionarios");
       router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Erro ao cadastrar.");
@@ -83,9 +101,7 @@ export function NovoFuncionarioForm({ turnos }: { turnos: Turno[] }) {
           inputMode="numeric"
           maxLength={11}
           value={form.cpf}
-          onChange={(e) =>
-            setForm({ ...form, cpf: e.target.value.replace(/\D/g, "") })
-          }
+          onChange={(e) => setForm({ ...form, cpf: e.target.value.replace(/\D/g, "") })}
           className={inputClass}
         />
       </label>
@@ -93,8 +109,18 @@ export function NovoFuncionarioForm({ turnos }: { turnos: Turno[] }) {
       <label className="flex flex-col gap-1 text-sm text-black dark:text-zinc-50">
         Telefone (opcional)
         <input
+          type="tel"
+          maxLength={15}
+          placeholder="(42) 99911-0001"
+          pattern="\(\d{2}\) \d{4,5}-\d{4}"
+          title="Telefone no formato (XX) XXXX-XXXX ou (XX) XXXXX-XXXX"
           value={form.telefone}
-          onChange={(e) => setForm({ ...form, telefone: e.target.value })}
+          onChange={(e) =>
+            // Só dígito entra de fato — letra e símbolo digitado são
+            // descartados, e "(", ")", espaço e "-" são inseridos
+            // automaticamente pela máscara (ver lib/telefone.ts).
+            setForm({ ...form, telefone: formatarTelefone(e.target.value) })
+          }
           className={inputClass}
         />
       </label>
@@ -120,62 +146,45 @@ export function NovoFuncionarioForm({ turnos }: { turnos: Turno[] }) {
           max={168}
           value={form.cargaHorariaSemanal}
           onChange={(e) =>
-            setForm({
-              ...form,
-              cargaHorariaSemanal: Number(e.target.value),
-            })
+            setForm({ ...form, cargaHorariaSemanal: Number(e.target.value) })
           }
           className={inputClass}
         />
       </label>
 
-      <label className="flex items-center gap-2 text-sm text-black dark:text-zinc-50">
-        <input
-          type="checkbox"
-          checked={form.coringa}
+      <label className="flex flex-col gap-1 text-sm text-black dark:text-zinc-50">
+        Posto de trabalho
+        <select
+          value={form.postoId}
           onChange={(e) =>
-            setForm({
-              ...form,
-              coringa: e.target.checked,
-              turnoPadraoId: e.target.checked ? "" : form.turnoPadraoId,
-            })
+            // Trocar de posto zera as habilitações: elas apontam pra
+            // turnos do posto anterior, que não existem no novo.
+            {
+              setForm({ ...form, postoId: e.target.value });
+              setEscala({ ...escala, turnoPadraoId: "", turnosHabilitadosIds: [] });
+            }
           }
-        />
-        É coringa (cobre a folga de outros funcionários, sem turno fixo)
+          className={inputClass}
+        >
+          <option value="">Sem posto definido</option>
+          {postos.map((p) => (
+            <option key={p.id} value={p.id}>
+              {p.nome} — {p.localizacao}
+            </option>
+          ))}
+        </select>
+        <span className="text-xs text-zinc-500 dark:text-zinc-400">
+          A geração automática monta a escala com a equipe do posto escolhido, usando a
+          grade de horários dele.
+        </span>
       </label>
 
-      {!form.coringa && (
-        <>
-          <label className="flex flex-col gap-1 text-sm text-black dark:text-zinc-50">
-            Turno padrão (horário fixo deste funcionário)
-            <select
-              value={form.turnoPadraoId}
-              onChange={(e) =>
-                setForm({ ...form, turnoPadraoId: e.target.value })
-              }
-              className={inputClass}
-            >
-              <option value="">Sem turno padrão definido</option>
-              {turnos.map((t) => (
-                <option key={t.id} value={t.id}>
-                  {turnoLabel(t)}
-                </option>
-              ))}
-            </select>
-          </label>
-          <p className="-mt-2 text-xs text-zinc-500 dark:text-zinc-400">
-            É esse horário que a geração automática de escala usa pra alocar
-            o funcionário todo mês. Sem ele, o funcionário fica de fora da
-            geração automática (a menos que seja coringa).
-          </p>
-        </>
-      )}
-      {form.coringa && (
-        <p className="-mt-2 text-xs text-zinc-500 dark:text-zinc-400">
-          Um coringa não tem turno fixo: a geração automática atribui a
-          ele, dia a dia, o turno de quem estiver de folga naquele dia.
-        </p>
-      )}
+      <FuncionarioCamposEscala
+        turnos={turnos}
+        postoId={form.postoId}
+        valor={escala}
+        onChange={setEscala}
+      />
 
       <label className="flex items-center gap-2 text-sm text-black dark:text-zinc-50">
         <input

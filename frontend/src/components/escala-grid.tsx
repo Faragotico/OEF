@@ -21,6 +21,11 @@ type AlocacaoGrid = {
   data: string;
   turnoId: number;
 };
+// O que volta da API inclui o turno junto (o repository usa
+// include: { turno: true }) — usamos isso só quando o turno é um
+// "horário personalizado" recém-criado, pra já saber exibir ele sem
+// precisar recarregar a página inteira.
+type AlocacaoApiResponse = AlocacaoGrid & { turno?: Turno };
 
 const DIAS_SEMANA = ["dom", "seg", "ter", "qua", "qui", "sex", "sáb"];
 
@@ -47,11 +52,45 @@ function ehDomingo(dataIso: string): boolean {
   return new Date(`${dataIso}T00:00:00Z`).getUTCDay() === 0;
 }
 
+const MESES_ABREV = [
+  "jan", "fev", "mar", "abr", "mai", "jun",
+  "jul", "ago", "set", "out", "nov", "dez",
+];
+
+// Só o número do dia ("01"), sem repetir ano/mês em toda linha — o
+// mês/ano aparece uma vez só, na primeira linha de cada mês (ver
+// mesAnoLabel abaixo), pra ter bem menos informação repetida na tela.
+function diaCurto(dataIso: string): string {
+  return dataIso.slice(8, 10);
+}
+
+function mesAnoLabel(dataIso: string): string {
+  const [ano, mes] = dataIso.split("-");
+  return `${MESES_ABREV[Number(mes) - 1]}/${ano}`;
+}
+
 function turnoLabel(t: Turno | null | undefined) {
   if (!t) return "sem turno padrão";
   return t.descricao
     ? `${t.descricao} (${t.horaInicio}–${t.horaFim})`
     : `${t.horaInicio}–${t.horaFim}`;
+}
+
+// Duração de um turno em horas, a partir dos horários "HH:MM" — não
+// espera turno virando meia-noite (não existe caso assim no domínio,
+// posto de porteiro/recepcionista com horário comercial), mas soma 24h
+// se acontecer pra não dar duração negativa.
+function horasDoTurno(t: Turno): number {
+  const [hi, mi] = t.horaInicio.split(":").map(Number);
+  const [hf, mf] = t.horaFim.split(":").map(Number);
+  let minutos = hf * 60 + mf - (hi * 60 + mi);
+  if (minutos <= 0) minutos += 24 * 60;
+  return minutos / 60;
+}
+
+function formatarHoras(horas: number): string {
+  const arredondado = Math.round(horas * 10) / 10;
+  return `${arredondado.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}h`;
 }
 
 // Grade dia x funcionário — mesmo formato de leitura das escalas reais
@@ -77,6 +116,7 @@ export function EscalaGrid({
   alocacoes,
   folgaMotivos,
   escalaId,
+  intervaloIntrajornadaHoras = 1,
 }: {
   dataInicio: string;
   dataFim: string;
@@ -85,17 +125,69 @@ export function EscalaGrid({
   alocacoes: AlocacaoGrid[];
   folgaMotivos?: Map<string, string>;
   escalaId: number;
+  // Pausa dentro do turno (almoço etc.) que não conta como hora
+  // trabalhada — descontada de cada alocação antes de somar no total
+  // "no período". Mesmo valor usado pelo backend no RN04 e no PDF (regra
+  // global "intervalo_intrajornada", padrão 1h). Passado pela página que
+  // busca /regras; se não vier, assume 1h pra bater com o padrão do
+  // backend quando a regra não está cadastrada.
+  intervaloIntrajornadaHoras?: number;
 }) {
   const [alocacoesState, setAlocacoesState] = useState(alocacoes);
+  // Turnos conhecidos pela grade — começa com os cadastrados, e ganha
+  // um item novo sempre que alguém salva um horário personalizado
+  // (assim a célula mostra o horário certo sem precisar recarregar).
+  const [turnosState, setTurnosState] = useState(turnos);
   const [editando, setEditando] = useState<{
     funcionarioId: number;
     data: string;
   } | null>(null);
+  // true = a célula em edição está mostrando os dois campos de
+  // horário personalizado em vez do <select> de turnos cadastrados.
+  const [modoCustom, setModoCustom] = useState(false);
+  const [horaInicioCustom, setHoraInicioCustom] = useState("");
+  const [horaFimCustom, setHoraFimCustom] = useState("");
   const [salvando, setSalvando] = useState(false);
   const [erroCelula, setErroCelula] = useState<string | null>(null);
 
+  // Fecha a edição de uma célula e limpa qualquer estado de horário
+  // personalizado que tivesse ficado pra trás.
+  function fecharEdicao() {
+    setEditando(null);
+    setModoCustom(false);
+    setHoraInicioCustom("");
+    setHoraFimCustom("");
+  }
+
+  function abrirEdicao(funcionarioId: number, data: string) {
+    setEditando({ funcionarioId, data });
+    setModoCustom(false);
+    setHoraInicioCustom("");
+    setHoraFimCustom("");
+  }
+
   const dias = diasDoPeriodo(dataInicio, dataFim);
-  const turnoById = new Map(turnos.map((t) => [t.id, t]));
+
+  // Numa escala típica (1 mês só), o "mês/ano" fica no cabeçalho da
+  // coluna "Dia" — não precisa repetir em cada linha. Só quando o
+  // período cobre mais de um mês (raro) é que não dá pra cravar um só
+  // mês no cabeçalho; nesse caso volta a mostrar na primeira linha de
+  // cada mês, dentro da própria coluna (ver diasComMesAno).
+  const mesesNoPeriodo = new Set(dias.map(mesAnoLabel));
+  const mesAnoUnico = mesesNoPeriodo.size === 1 ? mesAnoLabel(dias[0]) : null;
+  const diasComMesAno = mesAnoUnico
+    ? new Set<string>()
+    : (() => {
+        const marcados = new Set<string>();
+        let anterior: string | null = null;
+        for (const d of dias) {
+          const mesAno = mesAnoLabel(d);
+          if (mesAno !== anterior) marcados.add(d);
+          anterior = mesAno;
+        }
+        return marcados;
+      })();
+  const turnoById = new Map(turnosState.map((t) => [t.id, t]));
 
   // Titulares ordenados pelo horário de início, coringas por último —
   // fica mais fácil acompanhar a cobertura ao longo do dia (relevante
@@ -110,10 +202,19 @@ export function EscalaGrid({
 
   const colunas = funcionariosOrdenados.map((f) => {
     const alocacaoPorDia = new Map<string, AlocacaoGrid>();
+    let horasNoPeriodo = 0;
     for (const a of alocacoesState) {
-      if (a.funcionarioId === f.id) alocacaoPorDia.set(a.data, a);
+      if (a.funcionarioId !== f.id) continue;
+      alocacaoPorDia.set(a.data, a);
+      const turno = turnoById.get(a.turnoId);
+      if (turno) {
+        horasNoPeriodo += Math.max(
+          0,
+          horasDoTurno(turno) - intervaloIntrajornadaHoras,
+        );
+      }
     }
-    return { ...f, alocacaoPorDia };
+    return { ...f, alocacaoPorDia, horasNoPeriodo };
   });
 
   if (dias.length === 0 || colunas.length === 0) {
@@ -124,11 +225,25 @@ export function EscalaGrid({
     );
   }
 
+  // Registra na grade um turno que voltou junto da resposta da API
+  // (só acontece com horário personalizado — a API sempre inclui o
+  // turno na resposta, mas só vale a pena guardar quando é um turno
+  // que a grade ainda não conhecia).
+  function registrarTurnoNovo(turno: Turno | undefined) {
+    if (!turno) return;
+    setTurnosState((prev) =>
+      prev.some((t) => t.id === turno.id) ? prev : [...prev, turno],
+    );
+  }
+
+  // `turnoPayload` é ou { turnoId } (turno já cadastrado) ou
+  // { horaInicio, horaFim } (horário personalizado — o backend acha ou
+  // cria um Turno com esse horário e devolve ele já resolvido).
   async function salvarCelula(
     funcionarioId: number,
     data: string,
     atual: AlocacaoGrid | undefined,
-    valorEscolhido: string,
+    valorEscolhido: string | { horaInicio: string; horaFim: string },
   ) {
     setSalvando(true);
     setErroCelula(null);
@@ -139,23 +254,34 @@ export function EscalaGrid({
           setAlocacoesState((prev) => prev.filter((a) => a.id !== atual.id));
         }
       } else {
-        const turnoId = Number(valorEscolhido);
+        const turnoPayload =
+          typeof valorEscolhido === "string"
+            ? { turnoId: Number(valorEscolhido) }
+            : valorEscolhido;
+
         if (atual) {
-          await apiPatch(`/alocacoes/${atual.id}`, { turnoId });
+          const atualizada = await apiPatch<AlocacaoApiResponse>(
+            `/alocacoes/${atual.id}`,
+            turnoPayload,
+          );
+          registrarTurnoNovo(atualizada.turno);
           setAlocacoesState((prev) =>
-            prev.map((a) => (a.id === atual.id ? { ...a, turnoId } : a)),
+            prev.map((a) =>
+              a.id === atual.id ? { ...a, turnoId: atualizada.turnoId } : a,
+            ),
           );
         } else {
-          const criada = await apiPost<AlocacaoGrid>("/alocacoes", {
+          const criada = await apiPost<AlocacaoApiResponse>("/alocacoes", {
             escalaId,
             funcionarioId,
             data,
-            turnoId,
+            ...turnoPayload,
           });
+          registrarTurnoNovo(criada.turno);
           setAlocacoesState((prev) => [...prev, criada]);
         }
       }
-      setEditando(null);
+      fecharEdicao();
     } catch (err) {
       setErroCelula(
         err instanceof Error ? err.message : "Erro ao salvar a alteração.",
@@ -184,13 +310,21 @@ export function EscalaGrid({
           <thead className="bg-red-100 dark:bg-red-950/40">
             <tr>
               <th className="sticky left-0 z-10 bg-red-100 px-4 py-3 text-left font-medium dark:bg-zinc-900">
-                Dia
+                <div>Dia</div>
+                {mesAnoUnico && (
+                  <div className="text-xs font-bold uppercase text-red-700 dark:text-red-400">
+                    {mesAnoUnico}
+                  </div>
+                )}
               </th>
               {colunas.map((f) => (
                 <th key={f.id} className="px-4 py-3 font-medium">
                   <div>{f.nome}</div>
                   <div className="text-xs font-normal text-zinc-500 dark:text-zinc-400">
                     {f.coringa ? "coringa" : turnoLabel(f.turnoPadrao)}
+                  </div>
+                  <div className="text-xs font-bold text-red-700 dark:text-red-400">
+                    {formatarHoras(f.horasNoPeriodo)} no período
                   </div>
                 </th>
               ))}
@@ -206,13 +340,72 @@ export function EscalaGrid({
                 }
               >
                 <td className="sticky left-0 z-10 bg-white px-4 py-2 text-left dark:bg-black">
-                  {dia}{" "}
+                  {diasComMesAno.has(dia) && (
+                    <div className="text-[10px] font-bold uppercase text-red-700 dark:text-red-400">
+                      {mesAnoLabel(dia)}
+                    </div>
+                  )}
+                  {diaCurto(dia)}{" "}
                   <span className="text-zinc-400">({diaSemana(dia)})</span>
                 </td>
                 {colunas.map((f) => {
                   const atual = f.alocacaoPorDia.get(dia);
                   const estaEditandoEstaCelula =
                     editando?.funcionarioId === f.id && editando?.data === dia;
+
+                  if (estaEditandoEstaCelula && modoCustom) {
+                    const horarioValido =
+                      horaInicioCustom !== "" &&
+                      horaFimCustom !== "" &&
+                      horaFimCustom > horaInicioCustom;
+                    return (
+                      <td key={f.id} className="px-2 py-1">
+                        <div className="flex flex-col gap-1">
+                          <div className="flex items-center gap-1">
+                            <input
+                              autoFocus
+                              type="time"
+                              disabled={salvando}
+                              value={horaInicioCustom}
+                              onChange={(e) => setHoraInicioCustom(e.target.value)}
+                              className="w-full border-2 border-black bg-white px-1 py-1 text-xs dark:bg-zinc-900 dark:text-white"
+                            />
+                            <span className="text-xs">–</span>
+                            <input
+                              type="time"
+                              disabled={salvando}
+                              value={horaFimCustom}
+                              onChange={(e) => setHoraFimCustom(e.target.value)}
+                              className="w-full border-2 border-black bg-white px-1 py-1 text-xs dark:bg-zinc-900 dark:text-white"
+                            />
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <button
+                              type="button"
+                              disabled={salvando || !horarioValido}
+                              onClick={() =>
+                                salvarCelula(f.id, dia, atual, {
+                                  horaInicio: horaInicioCustom,
+                                  horaFim: horaFimCustom,
+                                })
+                              }
+                              className="flex-1 border-2 border-black bg-red-600 px-1 py-1 text-xs font-bold text-white hover:bg-red-700 disabled:opacity-50"
+                            >
+                              Salvar
+                            </button>
+                            <button
+                              type="button"
+                              disabled={salvando}
+                              onClick={fecharEdicao}
+                              className="border-2 border-black bg-white px-1 py-1 text-xs dark:bg-zinc-900 dark:text-white"
+                            >
+                              Cancelar
+                            </button>
+                          </div>
+                        </div>
+                      </td>
+                    );
+                  }
 
                   if (estaEditandoEstaCelula) {
                     return (
@@ -221,18 +414,22 @@ export function EscalaGrid({
                           autoFocus
                           disabled={salvando}
                           defaultValue={atual ? String(atual.turnoId) : "folga"}
-                          onChange={(e) =>
-                            salvarCelula(f.id, dia, atual, e.target.value)
-                          }
-                          onBlur={() => setEditando(null)}
+                          onChange={(e) => {
+                            if (e.target.value === "custom") {
+                              setModoCustom(true);
+                              return;
+                            }
+                            salvarCelula(f.id, dia, atual, e.target.value);
+                          }}
                           className="w-full border-2 border-black bg-white px-1 py-1 text-xs dark:bg-zinc-900 dark:text-white"
                         >
                           <option value="folga">Folga</option>
-                          {turnos.map((t) => (
+                          {turnosState.map((t) => (
                             <option key={t.id} value={t.id}>
                               {t.horaInicio}–{t.horaFim}
                             </option>
                           ))}
+                          <option value="custom">Horário personalizado…</option>
                         </select>
                       </td>
                     );
@@ -244,7 +441,7 @@ export function EscalaGrid({
                       <td
                         key={f.id}
                         title={motivo ?? "Clique pra editar"}
-                        onClick={() => setEditando({ funcionarioId: f.id, data: dia })}
+                        onClick={() => abrirEdicao(f.id, dia)}
                         className="cursor-pointer bg-red-600 px-4 py-2 font-black text-white hover:bg-red-700"
                       >
                         F
@@ -258,7 +455,7 @@ export function EscalaGrid({
                       <td
                         key={f.id}
                         title="Clique pra editar"
-                        onClick={() => setEditando({ funcionarioId: f.id, data: dia })}
+                        onClick={() => abrirEdicao(f.id, dia)}
                         className="cursor-pointer px-4 py-2 text-zinc-300 hover:bg-zinc-100 dark:text-zinc-700 dark:hover:bg-zinc-800"
                       >
                         ·
@@ -276,7 +473,7 @@ export function EscalaGrid({
                           : "Turno alterado nesse dia (substituição/troca)") +
                         " — clique pra editar"
                       }
-                      onClick={() => setEditando({ funcionarioId: f.id, data: dia })}
+                      onClick={() => abrirEdicao(f.id, dia)}
                       className="cursor-pointer bg-red-100 px-4 py-2 text-xs font-bold text-red-900 hover:bg-red-200 dark:bg-red-950/40 dark:text-red-100 dark:hover:bg-red-950/70"
                     >
                       {turno ? `${turno.horaInicio}–${turno.horaFim}` : `#${atual.turnoId}`}

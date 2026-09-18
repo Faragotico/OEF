@@ -3,6 +3,7 @@
 import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { apiPatch, apiPost } from "@/lib/api";
+import { formatarTelefone } from "@/lib/telefone";
 
 const inputClass =
   "border-2 border-black bg-white px-3 py-2 text-sm text-black dark:bg-zinc-900 dark:text-white";
@@ -18,9 +19,15 @@ type ValoresEmpresa = {
 export function EmpresaForm({
   id,
   valoresIniciais,
+  onSalvo,
 }: {
   id?: number;
   valoresIniciais?: ValoresEmpresa;
+  // Chamado após salvar com sucesso, no lugar de navegar pra
+  // "/empresas" — quem abre este form dentro de um Modal passa isso
+  // pra só fechar o popup (a lista por trás já se atualiza sozinha
+  // via router.refresh()).
+  onSalvo?: () => void;
 }) {
   const router = useRouter();
   const modoEdicao = id !== undefined;
@@ -47,7 +54,11 @@ export function EmpresaForm({
       } else {
         await apiPost("/empresas", payload);
       }
-      router.push("/empresas");
+      if (onSalvo) {
+        onSalvo();
+      } else {
+        router.push("/empresas");
+      }
       router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Erro ao salvar.");
@@ -71,24 +82,48 @@ export function EmpresaForm({
       </label>
 
       <label className="flex flex-col gap-1 text-sm text-black dark:text-zinc-50">
-        CNPJ (14 caracteres, sem máscara — alfanumérico a partir de 2026)
+        CNPJ (14 caracteres alfanuméricos, sem máscara)
         <input
           required
-          maxLength={14}
+          // maxLength alto de propósito, mesmo o campo sendo "sem
+          // máscara": se colar um CNPJ formatado (ex:
+          // "12.345.678/9001-23", 18 caracteres), precisa caber o texto
+          // colado inteiro ANTES de limpar — com maxLength=14 o
+          // navegador cortava o texto colado no meio, perdendo dígitos
+          // reais do CNPJ. Ponto/barra/hífen digitados na mão são só
+          // descartados na hora (replace abaixo), não ficam visíveis —
+          // por isso o rótulo não promete manter a máscara.
+          maxLength={20}
+          placeholder="12345678900123"
           value={form.cnpj}
           onChange={(e) =>
-            setForm({ ...form, cnpj: e.target.value.toUpperCase() })
+            setForm({
+              ...form,
+              cnpj: e.target.value
+                .replace(/[^a-zA-Z0-9]/g, "")
+                .toUpperCase()
+                .slice(0, 14),
+            })
           }
           className={inputClass}
         />
       </label>
 
       <label className="flex flex-col gap-1 text-sm text-black dark:text-zinc-50">
-        Contato (opcional)
+        Contato (telefone, opcional)
         <input
-          maxLength={100}
+          type="tel"
+          maxLength={15}
+          placeholder="(42) 3222-0000"
+          pattern="\(\d{2}\) \d{4,5}-\d{4}"
+          title="Telefone no formato (XX) XXXX-XXXX ou (XX) XXXXX-XXXX"
           value={form.contato}
-          onChange={(e) => setForm({ ...form, contato: e.target.value })}
+          onChange={(e) =>
+            // Só dígito entra de fato — letra e símbolo digitado são
+            // descartados, e "(", ")", espaço e "-" são inseridos
+            // automaticamente pela máscara (ver lib/telefone.ts).
+            setForm({ ...form, contato: formatarTelefone(e.target.value) })
+          }
           className={inputClass}
         />
       </label>

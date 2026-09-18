@@ -19,10 +19,12 @@ export function PostoForm({
   id,
   empresas,
   valoresIniciais,
+  onSalvo,
 }: {
   id?: number;
   empresas: Empresa[];
   valoresIniciais?: ValoresPosto;
+  onSalvo?: () => void;
 }) {
   const router = useRouter();
   const modoEdicao = id !== undefined;
@@ -53,7 +55,11 @@ export function PostoForm({
       } else {
         await apiPost("/postos", payload);
       }
-      router.push("/postos");
+      if (onSalvo) {
+        onSalvo();
+      } else {
+        router.push("/postos");
+      }
       router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Erro ao salvar.");

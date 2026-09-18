@@ -7,37 +7,86 @@ import { apiPatch, apiPost } from "@/lib/api";
 const inputClass =
   "border-2 border-black bg-white px-3 py-2 text-sm text-black dark:bg-zinc-900 dark:text-white";
 
-// Tipos já usados pelo motor de geração/validação de escala (ver
-// RegrasTrabalhistasService) — sugeridos aqui só pra ajudar a digitar
-// certo, mas o campo aceita qualquer texto (não é um enum no banco).
-const TIPOS_CONHECIDOS = [
-  "escala",
-  "intervalo_interjornada",
-  "intervalo_intrajornada",
-  "carga_horaria_semanal",
-  "descanso_semanal",
-];
+// Os únicos quatro tipos que o motor de geração/validação de escala
+// (RegrasTrabalhistasService, GeracaoEscalaService) realmente lê —
+// mesma lista do CreateRegraDto no backend. Antes deste rework a tela
+// aceitava qualquer texto e sugeria mais dois tipos que nunca tiveram
+// efeito nenhum; agora só dá pra cadastrar o que de fato muda alguma
+// coisa na geração/validação, e cada um explica o que é.
+const TIPOS = [
+  {
+    chave: "escala",
+    label: "Padrão de rodízio da escala",
+    ajuda:
+      "Quantos dias o funcionário trabalha antes de folgar (ex: 5 dias trabalhados x 1 de folga). É a regra que você escolhe ao gerar uma escala automática — pode cadastrar mais de uma (5x1, 6x1...) e escolher qual usar em cada geração. Os dois números são em DIAS, e o máximo de dias trabalhados é 6: o descanso semanal (RN07) não permite mais que isso sem folga. Plantão em horas (12x36) não é suportado.",
+    valorPadrao: "5x1",
+  },
+  {
+    chave: "carga_horaria_semanal",
+    label: "Carga horária semanal máxima",
+    ajuda:
+      'Limite de horas que um funcionário pode trabalhar de segunda a domingo (CLT: 44h). Vale pro sistema inteiro, sem precisar escolher em lugar nenhum. Só cadastre esta regra se quiser um valor diferente de 44 — sem ela, o sistema já usa 44h.',
+    valorPadrao: "44",
+  },
+  {
+    chave: "intervalo_interjornada",
+    label: "Intervalo mínimo entre jornadas",
+    ajuda:
+      "Descanso mínimo, em horas, entre o fim de um turno e o início do próximo (CLT: 11h). Vale pro sistema inteiro, sem precisar escolher em lugar nenhum. Só cadastre esta regra se quiser um valor diferente de 11 — sem ela, o sistema já usa 11h.",
+    valorPadrao: "11",
+  },
+  {
+    chave: "intervalo_intrajornada",
+    label: "Intervalo intrajornada (pausa dentro do turno)",
+    ajuda:
+      "Pausa dentro do turno (ex: 1h de almoço num turno de 8h) que não conta como hora trabalhada — é descontada do total de horas antes de checar o limite semanal e em qualquer total de horas exibido. Vale pro sistema inteiro, sem precisar escolher em lugar nenhum. Só cadastre esta regra se quiser um valor diferente de 1h — sem ela, o sistema já desconta 1h por turno.",
+    valorPadrao: "1",
+  },
+] as const;
+
+type TipoRegra = (typeof TIPOS)[number]["chave"];
 
 type ValoresRegra = {
   descricao: string;
-  tipo: string;
+  tipo: TipoRegra;
   valor: string;
 };
 
 export function RegraForm({
   id,
   valoresIniciais,
+  onSalvo,
 }: {
   id?: number;
   valoresIniciais?: ValoresRegra;
+  onSalvo?: () => void;
 }) {
   const router = useRouter();
   const modoEdicao = id !== undefined;
   const [form, setForm] = useState<ValoresRegra>(
-    valoresIniciais ?? { descricao: "", tipo: "", valor: "" },
+    valoresIniciais ?? { descricao: "", tipo: "escala", valor: "5x1" },
   );
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+
+  const tipoAtual = TIPOS.find((t) => t.chave === form.tipo) ?? TIPOS[0];
+
+  // Trocar de tipo troca o formato esperado do valor — mantém o valor
+  // antigo aqui não faz sentido (um "5x1" não quer dizer nada pra
+  // "carga horária semanal"), então reseta pro padrão do tipo novo.
+  function handleTipoChange(novoTipo: TipoRegra) {
+    const tipo = TIPOS.find((t) => t.chave === novoTipo) ?? TIPOS[0];
+    setForm({ ...form, tipo: tipo.chave, valor: tipo.valorPadrao });
+  }
+
+  // Só usado quando tipo === "escala": os dois números do "NxM".
+  const matchCiclo = form.valor.match(/^(\d+)x(\d+)$/);
+  const diasTrabalho = matchCiclo ? matchCiclo[1] : "";
+  const diasDescanso = matchCiclo ? matchCiclo[2] : "";
+
+  function handleCicloChange(trabalho: string, descanso: string) {
+    setForm({ ...form, valor: `${trabalho || 0}x${descanso || 0}` });
+  }
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
@@ -50,7 +99,11 @@ export function RegraForm({
       } else {
         await apiPost("/regras", form);
       }
-      router.push("/regras");
+      if (onSalvo) {
+        onSalvo();
+      } else {
+        router.push("/regras");
+      }
       router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Erro ao salvar.");
@@ -67,6 +120,7 @@ export function RegraForm({
           required
           minLength={3}
           maxLength={500}
+          placeholder='Ex: "Escala padrão 5x1", "Limite de 44h semanais"'
           value={form.descricao}
           onChange={(e) => setForm({ ...form, descricao: e.target.value })}
           className={inputClass}
@@ -74,39 +128,65 @@ export function RegraForm({
       </label>
 
       <label className="flex flex-col gap-1 text-sm text-black dark:text-zinc-50">
-        Tipo
-        <input
+        Tipo de regra
+        <select
           required
-          list="tipos-conhecidos"
-          minLength={2}
-          maxLength={50}
           value={form.tipo}
-          onChange={(e) => setForm({ ...form, tipo: e.target.value })}
+          onChange={(e) => handleTipoChange(e.target.value as TipoRegra)}
           className={inputClass}
-        />
-        <datalist id="tipos-conhecidos">
-          {TIPOS_CONHECIDOS.map((t) => (
-            <option key={t} value={t} />
+        >
+          {TIPOS.map((t) => (
+            <option key={t.chave} value={t.chave}>
+              {t.label}
+            </option>
           ))}
-        </datalist>
+        </select>
       </label>
-      <p className="-mt-2 text-xs text-zinc-500 dark:text-zinc-400">
-        Tipos que o motor de geração/validação de escala já reconhece:{" "}
-        {TIPOS_CONHECIDOS.join(", ")}. Um tipo diferente desses fica só
-        cadastrado, sem efeito automático na geração.
+      <p className="-mt-2 border-2 border-black bg-red-100 px-3 py-2 text-xs text-red-900 dark:bg-red-950/40 dark:text-red-100">
+        {tipoAtual.ajuda}
       </p>
 
-      <label className="flex flex-col gap-1 text-sm text-black dark:text-zinc-50">
-        Valor
-        <input
-          required
-          maxLength={50}
-          placeholder='Ex: "5x1", "11", "44"'
-          value={form.valor}
-          onChange={(e) => setForm({ ...form, valor: e.target.value })}
-          className={inputClass}
-        />
-      </label>
+      {form.tipo === "escala" ? (
+        <div className="grid grid-cols-2 gap-4">
+          <label className="flex flex-col gap-1 text-sm text-black dark:text-zinc-50">
+            Dias trabalhados
+            <input
+              type="number"
+              required
+              min={1}
+              max={6}
+              value={diasTrabalho}
+              onChange={(e) => handleCicloChange(e.target.value, diasDescanso)}
+              className={inputClass}
+            />
+          </label>
+          <label className="flex flex-col gap-1 text-sm text-black dark:text-zinc-50">
+            Dias de folga
+            <input
+              type="number"
+              required
+              min={1}
+              max={7}
+              value={diasDescanso}
+              onChange={(e) => handleCicloChange(diasTrabalho, e.target.value)}
+              className={inputClass}
+            />
+          </label>
+        </div>
+      ) : (
+        <label className="flex flex-col gap-1 text-sm text-black dark:text-zinc-50">
+          Valor (horas)
+          <input
+            type="number"
+            required
+            min={1}
+            max={168}
+            value={form.valor}
+            onChange={(e) => setForm({ ...form, valor: e.target.value })}
+            className={inputClass}
+          />
+        </label>
+      )}
 
       {error && (
         <p className="border-2 border-black bg-red-600 px-3 py-2 text-sm font-medium text-white">

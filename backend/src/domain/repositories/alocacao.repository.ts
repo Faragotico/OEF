@@ -32,11 +32,35 @@ export class AlocacaoRepository {
     return this.prisma.alocacao.create({ data, include: this.include });
   }
 
-  findAll(): Promise<Alocacao[]> {
-    return this.prisma.alocacao.findMany({
-      orderBy: { data: 'asc' },
-      include: this.include,
-    });
+  // Quantas alocações por página. Antes a tela trazia a tabela
+  // inteira e paginava no navegador (`alocacoes.slice(...)` sobre um
+  // array que só cresce); agora o corte acontece no banco — só as 25
+  // linhas da página pedida saem da consulta e viajam pela rede.
+  static readonly POR_PAGINA = 25;
+
+  async findAllPaginado(
+    where: Prisma.AlocacaoWhereInput,
+    page: number,
+  ): Promise<{ data: Alocacao[]; total: number }> {
+    const take = AlocacaoRepository.POR_PAGINA;
+    const skip = (page - 1) * take;
+
+    // As duas consultas (a página de dados + a contagem do total) saem
+    // juntas, na mesma transação — não é sobre consistência (não há
+    // escrita aqui), é só pra disparar as duas em paralelo em vez de
+    // uma esperar a outra.
+    const [data, total] = await this.prisma.$transaction([
+      this.prisma.alocacao.findMany({
+        where,
+        orderBy: { data: 'asc' },
+        include: this.include,
+        skip,
+        take,
+      }),
+      this.prisma.alocacao.count({ where }),
+    ]);
+
+    return { data, total };
   }
 
   findById(id: number): Promise<Alocacao | null> {

@@ -29,6 +29,7 @@ type Alocacao = {
   turnoId: number;
   escalaId: number;
 };
+type Regra = { id: number; descricao: string; tipo: string; valor: string };
 
 export default async function EscalaDetalhePage({
   params,
@@ -37,12 +38,23 @@ export default async function EscalaDetalhePage({
 }) {
   const { id } = await params;
 
-  const [escala, funcionarios, turnos, alocacoes] = await Promise.all([
+  const [escala, funcionarios, turnos, alocacoes, regras] = await Promise.all([
     apiGet<Escala>(`/escalas/${id}`),
     apiGet<Funcionario[]>("/funcionarios"),
     apiGet<Turno[]>("/turno"),
     apiGet<Alocacao[]>("/alocacoes"),
+    apiGet<Regra[]>("/regras"),
   ]);
+
+  // Pausa intrajornada (almoço etc.) — descontada das horas "no
+  // período" mostradas na grade. Mesmo padrão do backend (1h) quando a
+  // regra global não está cadastrada.
+  const regraIntrajornada = regras.find(
+    (r) => r.tipo === "intervalo_intrajornada",
+  );
+  const intervaloIntrajornadaHoras = regraIntrajornada
+    ? Number(regraIntrajornada.valor)
+    : 1;
 
   const alocacoesDaEscala = alocacoes.filter(
     (a) => a.escalaId === escala.id,
@@ -101,6 +113,7 @@ export default async function EscalaDetalhePage({
             turnos={turnos}
             alocacoes={alocacoesDaEscala}
             escalaId={escala.id}
+            intervaloIntrajornadaHoras={intervaloIntrajornadaHoras}
           />
         )}
       </div>

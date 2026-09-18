@@ -22,10 +22,53 @@ type Alocacao = {
   escalaId: number;
   turnoId: number;
 };
+type AlocacoesPaginadas = {
+  data: Alocacao[];
+  total: number;
+  page: number;
+  totalPaginas: number;
+};
 
-export default async function AlocacoesPage() {
+// Os filtros vêm da URL (?funcionarioId=3&page=2...), não de estado no
+// navegador. Isso é o que permite o backend paginar de verdade: cada
+// mudança de filtro navega pra uma nova URL, o Next busca de novo aqui
+// (server component) e só a página pedida sai do banco — nunca a
+// tabela inteira. Ver AlocacoesFilter pra como a navegação é disparada.
+type SearchParams = {
+  funcionarioId?: string;
+  turnoId?: string;
+  escalaId?: string;
+  dataInicio?: string;
+  dataFim?: string;
+  substituido?: string;
+  page?: string;
+};
+
+function paraQueryString(params: SearchParams): string {
+  const qs = new URLSearchParams();
+  if (params.funcionarioId) qs.set("funcionarioId", params.funcionarioId);
+  if (params.turnoId) qs.set("turnoId", params.turnoId);
+  if (params.escalaId) qs.set("escalaId", params.escalaId);
+  if (params.dataInicio) qs.set("dataInicio", params.dataInicio);
+  if (params.dataFim) qs.set("dataFim", params.dataFim);
+  if (params.substituido) qs.set("substituido", params.substituido);
+  if (params.page) qs.set("page", params.page);
+  const texto = qs.toString();
+  return texto ? `?${texto}` : "";
+}
+
+export default async function AlocacoesPage({
+  searchParams,
+}: {
+  searchParams: Promise<SearchParams>;
+}) {
+  const params = await searchParams;
+
+  // Funcionários/turnos/escalas continuam vindo por completo — são
+  // listas limitadas (uma linha por cadastro, não por dia gerado), o
+  // problema de escala era só a tabela de alocações.
   const [alocacoes, funcionarios, turnos, escalas] = await Promise.all([
-    apiGet<Alocacao[]>("/alocacoes"),
+    apiGet<AlocacoesPaginadas>(`/alocacoes${paraQueryString(params)}`),
     apiGet<Funcionario[]>("/funcionarios"),
     apiGet<Turno[]>("/turno"),
     apiGet<Escala[]>("/escalas"),
@@ -39,16 +82,20 @@ export default async function AlocacoesPage() {
             Alocações
           </h1>
           <p className="text-sm text-zinc-500 dark:text-zinc-400">
-            Todas as alocações já geradas — use os filtros abaixo pra
-            encontrar o que precisa
+            Use os filtros abaixo pra encontrar o que precisa — a lista
+            não carrega tudo de uma vez, só a página filtrada.
           </p>
         </div>
 
         <AlocacoesFilter
-          alocacoes={alocacoes}
+          alocacoes={alocacoes.data}
+          total={alocacoes.total}
+          page={alocacoes.page}
+          totalPaginas={alocacoes.totalPaginas}
           funcionarios={funcionarios}
           turnos={turnos}
           escalas={escalas}
+          filtrosAtuais={params}
         />
       </div>
     </main>

@@ -1,5 +1,31 @@
-import { IsBoolean, IsDate, IsInt, IsOptional } from 'class-validator';
+import {
+  IsBoolean,
+  IsDate,
+  IsInt,
+  IsOptional,
+  Matches,
+  Validate,
+  ValidatorConstraint,
+  ValidatorConstraintInterface,
+  ValidationArguments,
+} from 'class-validator';
 import { Type } from 'class-transformer';
+
+// Mesma checagem do CreateTurnoDto (ver o comentário lá): horaFim
+// precisa ser depois de horaInicio quando os dois vierem juntos. Se um
+// dos dois não vier, deixa passar — quem faz a checagem "os dois têm
+// que vir juntos" é o AlocacaoService.resolverTurnoId, não o DTO.
+@ValidatorConstraint({ name: 'horaFimDepoisAlocacao', async: false })
+class HoraFimDepoisAlocacaoConstraint implements ValidatorConstraintInterface {
+  validate(horaFim: string, args: ValidationArguments) {
+    const horaInicio = (args.object as any)[args.constraints[0]];
+    if (horaInicio === undefined || horaFim === undefined) return true;
+    return typeof horaFim === 'string' && horaFim > horaInicio;
+  }
+  defaultMessage() {
+    return 'horaFim deve ser posterior a horaInicio.';
+  }
+}
 
 // DTO de criação da Alocacao.
 // Lembre: o DTO é o "contrato" do que o CLIENTE manda pela internet.
@@ -24,8 +50,28 @@ export class CreateAlocacaoDto {
   @IsInt({ message: 'escalaId deve ser um número inteiro.' })
   escalaId: number;
 
+  // Agora OPCIONAL: ou o cliente manda turnoId (um turno já
+  // cadastrado), ou manda horaInicio+horaFim (horário personalizado
+  // avulso pra essa alocação — o AlocacaoService acha ou cria um
+  // Turno com esse horário na hora). A regra "um dos dois, nunca os
+  // dois nem nenhum" é checada em AlocacaoService.resolverTurnoId —
+  // não dá pra expressar "obrigatório A OU B" só com class-validator.
+  @IsOptional()
   @IsInt({ message: 'turnoId deve ser um número inteiro.' })
-  turnoId: number;
+  turnoId?: number;
+
+  @IsOptional()
+  @Matches(/^([01]\d|2[0-3]):[0-5]\d$/, {
+    message: 'horaInicio deve estar no formato HH:MM.',
+  })
+  horaInicio?: string;
+
+  @IsOptional()
+  @Matches(/^([01]\d|2[0-3]):[0-5]\d$/, {
+    message: 'horaFim deve estar no formato HH:MM.',
+  })
+  @Validate(HoraFimDepoisAlocacaoConstraint, ['horaInicio'])
+  horaFim?: string;
 
   // Opcional: se o cliente não mandar, o banco preenche false (@default).
   // Se mandar, precisa ser booleano. Mesma ideia do status? no Funcionario.

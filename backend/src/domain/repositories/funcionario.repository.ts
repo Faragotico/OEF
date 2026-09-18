@@ -6,16 +6,23 @@ import { PrismaService } from '../../infra/database/prisma.service';
 // Ele NÃO decide nada — só executa consultas. Regras de negócio
 // (ex: "CPF pode repetir?") não moram aqui, moram no service.
 //
-// create/update agora usam os tipos "Unchecked": desde que o
-// Funcionario ganhou o FK turnoPadraoId, o tipo "checked" do Prisma
-// passaria a exigir a forma aninhada (turnoPadrao: { connect: {...} } })
-// em vez do id cru — o Unchecked aceita turnoPadraoId direto, igual ao
-// resto dos repositories deste projeto (Alocacao, Turno, Regra etc.).
+// create/update usam os tipos "Unchecked" porque o Funcionario tem FKs
+// (turnoPadraoId, postoId): o tipo "checked" exigiria a forma aninhada
+// (turnoPadrao: { connect: {...} }) em vez do id cru.
+//
+// `habilitacoes` entra no include porque é dela que o presenter deriva
+// se a pessoa é coringa (sem turno padrão, mas habilitada em outros) ou
+// se o cadastro está incompleto (sem turno padrão e sem habilitação
+// nenhuma). Sem o include, as duas situações ficariam indistinguíveis.
 @Injectable()
 export class FuncionarioRepository {
   constructor(private readonly prisma: PrismaService) {}
 
-  private readonly include = { turnoPadrao: true };
+  private readonly include = {
+    turnoPadrao: true,
+    posto: true,
+    habilitacoes: true,
+  };
 
   create(data: Prisma.FuncionarioUncheckedCreateInput): Promise<Funcionario> {
     return this.prisma.funcionario.create({ data, include: this.include });

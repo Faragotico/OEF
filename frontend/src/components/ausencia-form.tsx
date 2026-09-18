@@ -25,10 +25,12 @@ export function AusenciaForm({
   id,
   funcionarios,
   valoresIniciais,
+  onSalvo,
 }: {
   id?: number;
   funcionarios: Funcionario[];
   valoresIniciais?: ValoresAusencia;
+  onSalvo?: () => void;
 }) {
   const router = useRouter();
   const modoEdicao = id !== undefined;
@@ -63,7 +65,11 @@ export function AusenciaForm({
       } else {
         await apiPost("/ausencias", payload);
       }
-      router.push("/ausencias");
+      if (onSalvo) {
+        onSalvo();
+      } else {
+        router.push("/ausencias");
+      }
       router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Erro ao salvar.");

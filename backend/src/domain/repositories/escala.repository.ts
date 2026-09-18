@@ -21,6 +21,24 @@ export class EscalaRepository {
     });
   }
 
+  // Escala do mesmo posto cujo período encosta no informado. Usada
+  // pela geração automática pra não criar duas escalas concorrentes
+  // pro mesmo posto e mês (ver GeracaoEscalaService).
+  findSobreposta(
+    postoId: number,
+    dataInic: Date,
+    dataFim: Date,
+  ): Promise<Escala | null> {
+    return this.prisma.escala.findFirst({
+      where: {
+        postoId,
+        dataInic: { lte: dataFim },
+        dataFim: { gte: dataInic },
+      },
+      orderBy: { dataInic: 'asc' },
+    });
+  }
+
   findById(id: number): Promise<Escala | null> {
     return this.prisma.escala.findUnique({
       where: { id },

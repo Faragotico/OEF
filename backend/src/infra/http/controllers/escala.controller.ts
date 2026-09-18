@@ -16,11 +16,11 @@ import { EscalaPdfService } from '../../../domain/services/escala-pdf.service';
 import { CreateEscalaDto } from '../dtos/escala/create-escala.dto';
 import { GerarEscalaAutomaticaDto } from '../dtos/escala/gerar-escala-automatica.dto';
 import { EscalaPresenter } from '../presenters/escala.presenter';
-import { AlocacaoPresenter } from '../presenters/alocacao.presenter';
 
 // @Controller('escalas') = todas as rotas começam com /escalas.
 // Além do CRUD básico, expõe as pontas dos casos de uso do documento:
 //   POST /escalas/gerar-automatica -> UC05 (gera a escala)
+//   POST /escalas/simular          -> UC05 sem gravar (prévia)
 //   GET  /escalas/:id/validar      -> UC06 (revalida uma escala existente)
 //   GET  /escalas/:id/pdf          -> UC08 (exporta a escala em PDF)
 @Controller('escalas')
@@ -43,11 +43,19 @@ export class EscalaController {
     const resultado = await this.geracao.gerarAutomatica(dto);
     return {
       ...resultado,
-      escala: EscalaPresenter.toHTTP(resultado.escala),
-      alocacoesCriadas: resultado.alocacoesCriadas.map((a) =>
-        AlocacaoPresenter.toHTTP(a),
-      ),
+      escala: resultado.escala ? EscalaPresenter.toHTTP(resultado.escala) : null,
     };
+  }
+
+  // Mesma geração, sem gravar nada. Existe como rota própria (e não só
+  // como campo no corpo) porque é semanticamente um GET caro: o gestor
+  // pode chamar à vontade pra comparar padrões de rodízio antes de
+  // escolher, sem deixar rastro no banco nem esbarrar na checagem de
+  // escala sobreposta.
+  @Post('simular')
+  async simular(@Body() dto: GerarEscalaAutomaticaDto) {
+    const resultado = await this.geracao.gerarAutomatica({ ...dto, simular: true });
+    return { ...resultado, escala: null };
   }
 
   @Get()
@@ -77,10 +85,7 @@ export class EscalaController {
   ): Promise<void> {
     const buffer = await this.pdf.gerar(id);
     res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader(
-      'Content-Disposition',
-      `attachment; filename="escala-${id}.pdf"`,
-    );
+    res.setHeader('Content-Disposition', `attachment; filename="escala-${id}.pdf"`);
     res.setHeader('Content-Length', buffer.length);
     res.send(buffer);
   }

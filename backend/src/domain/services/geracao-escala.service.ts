@@ -1,65 +1,55 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
-import { Alocacao } from '@prisma/client';
+import {
+  BadRequestException,
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { PrismaService } from '../../infra/database/prisma.service';
 import { EscalaRepository } from '../repositories/escala.repository';
 import { PostoTrabalhoRepository } from '../repositories/posto-trabalho.repository';
 import { RegraRepository } from '../repositories/regra.repository';
-import { AlocacaoRepository } from '../repositories/alocacao.repository';
 import { RegrasTrabalhistasService } from './regras-trabalhistas.service';
 import { GerarEscalaAutomaticaDto } from 'src/infra/http/dtos/escala/gerar-escala-automatica.dto';
 import {
+  type Pessoa,
+  type ProblemaEscala,
+  type Turno as TurnoDominio,
+} from '../escala/modelo';
+import { type DemandaTurno, inicioDoHistorico, montarDias, montarVagas } from '../escala/periodo';
+import { planejar } from '../escala/planejador';
+import {
   formatDate,
+  formatTime,
+  horaDecimal,
   normalizeDate,
   parseEscalaCiclo,
+  shiftDurationHours,
 } from 'src/helpers/date.helpers';
 
 // ============================================================
 // GeracaoEscalaService — UC05 "Gerar Escala Automaticamente".
 //
-// Algoritmo: TURNO FIXO POR FUNCIONÁRIO + RODÍZIO DE FOLGA. As escalas
-// reais da Sharon Pontes (ver os PDFs ESCALA_MATRIZ_*_2026 e
-// UVARANAS_ESCALAS_MARÇO_2025 que o cliente mandou) não rodiziam turno
-// entre pessoas — cada funcionário tem UM horário pessoal fixo o mês
-// inteiro (turnoPadraoId) e o que varia dia a dia é só se ele trabalha
-// ou folga. Trocas de turno num dia específico existem (substituição,
-// folga coberta por outro), mas isso é uma ALTERAÇÃO pontual feita
-// depois (editando a Alocacao daquele dia), não faz parte da geração.
+// Este serviço faz três coisas, nesta ordem, e nada além disso:
 //
-// Reparando nas escalas reais, as folgas TAMBÉM não são soltas: dentro
-// do mesmo posto, no geral só UMA pessoa folga por dia — nunca duas do
-// mesmo posto folgando junto (senão o posto ficaria descoberto). Pra
-// reproduzir isso, cada funcionário começa o ciclo Nx M (ex: 5x1) num
-// "deslocamento" diferente, igual à posição dele na lista (0, 1, 2...).
-// Com N funcionários ≤ tamanho do ciclo (N+M), os deslocamentos nunca
-// colidem — cada um folga num dia diferente do ciclo, pra sempre.
-// Se o posto tiver mais TITULARES (funcionários com turno fixo) do que
-// o tamanho do ciclo, a partir do (N+M+1)-ésimo os deslocamentos
-// começam a se repetir e duas pessoas podem acabar folgando no mesmo
-// dia — é uma limitação honesta do rodízio simples, não um bug (esse
-// posto precisaria de um segundo ciclo, ou de mais um coringa).
+//   1. CARREGA — uma batelada de consultas que traz tudo que a decisão
+//      precisa: a grade de horários do posto, a equipe, as ausências do
+//      período e os dias já trabalhados na semana anterior.
+//   2. PLANEJA — chama `planejar()`, que é função pura. Nenhuma regra
+//      de escala mora aqui.
+//   3. GRAVA — uma transação com dois comandos: cria a escala e insere
+//      as alocações de uma vez.
 //
-// CORINGA (funcionario.coringa = true): visto na escala real
-// UVARANAS_ESCALAS_MARÇO_2025 — um funcionário sem turno fixo, que
-// cobre o turno de quem estiver de folga no dia (por isso o horário
-// dele muda todo dia). Se nenhum titular estiver de folga num dia, o
-// coringa também folga. O motor decide os titulares do dia primeiro,
-// e só depois atribui os coringas às folgas que sobraram — se não
-// houver coringa suficiente (ou nenhum passar nas regras daquele
-// turno), a folga fica descoberta e aparece em coberturasPendentes.
+// A versão anterior misturava as três: ela decidia dia a dia, DENTRO de
+// uma transação, chamando uma validação que batia no banco de dez a
+// doze vezes por candidato. Uma geração de mês fazia perto de dois mil
+// idas ao banco e precisava de 120 segundos de timeout pra não
+// estourar. Agora são oito consultas antes e duas escritas depois, com
+// a decisão inteira acontecendo em memória, fora da transação.
 //
-// O motor, pra cada titular, percorre dia a dia do período: primeiro
-// confere se hoje é o dia de folga PROGRAMADA dele no rodízio — se
-// for, já marca folga sem nem tentar alocar. Se não for (dia de
-// trabalho programado), tenta alocar no turno padrão dele usando as
-// mesmas regras de uma alocação manual (RN01-RN07 + conflito de
-// horário, via RegrasTrabalhistasService); se algo mais impedir
-// (ausência registrada, interjornada, etc.), o dia também vira folga,
-// com o motivo real registrado no resumo.
-//
-// Funcionário sem turnoPadraoId e sem ser coringa não entra na geração
-// — o motor não tem como adivinhar em qual horário colocá-lo. Esses
-// casos voltam separados na resposta (funcionariosSemTurnoPadrao) pra
-// o gestor saber que precisa completar o cadastro antes.
+// Efeito colateral bom: SIMULAR ficou de graça. Gerar sem gravar é o
+// mesmo caminho sem o passo 3 — então o gestor pode comparar 5x1 com
+// 6x1 antes de escolher, em vez de gerar, não gostar, apagar a escala e
+// tentar de novo.
 // ============================================================
 @Injectable()
 export class GeracaoEscalaService {
@@ -67,7 +57,6 @@ export class GeracaoEscalaService {
     private readonly escalaRepository: EscalaRepository,
     private readonly postoTrabalhoRepository: PostoTrabalhoRepository,
     private readonly regraRepository: RegraRepository,
-    private readonly alocacaoRepository: AlocacaoRepository,
     private readonly regras: RegrasTrabalhistasService,
     private readonly prisma: PrismaService,
   ) {}
@@ -75,6 +64,8 @@ export class GeracaoEscalaService {
   async gerarAutomatica(dto: GerarEscalaAutomaticaDto) {
     const dataInicio = normalizeDate(dto.dataInicio);
     const dataFim = normalizeDate(dto.dataFim);
+    const inicioIso = formatDate(dataInicio);
+    const fimIso = formatDate(dataFim);
 
     if (dataFim < dataInicio) {
       throw new BadRequestException(
@@ -89,290 +80,324 @@ export class GeracaoEscalaService {
       );
     }
 
+    // Só checa sobreposição quando vai realmente gravar: simular o
+    // mesmo mês quantas vezes quiser é justamente o ponto da simulação.
+    if (!dto.simular) {
+      const sobreposta = await this.escalaRepository.findSobreposta(
+        dto.postoId,
+        dataInicio,
+        dataFim,
+      );
+      if (sobreposta) {
+        throw new ConflictException(
+          `Já existe a escala #${sobreposta.id} para este posto no período ` +
+            `${formatDate(sobreposta.dataInic)} a ${formatDate(sobreposta.dataFim)}. ` +
+            'Apague ou ajuste essa escala antes de gerar outra para o mesmo intervalo.',
+        );
+      }
+    }
+
     const regraEscala = dto.regraId
       ? await this.regraRepository.findById(dto.regraId)
-      : (await this.regraRepository.findAll()).find((r) => r.tipo === 'escala');
+      : await this.regraRepository.findPadraoOuPrimeiro('escala');
     if (!regraEscala) {
       throw new BadRequestException(
         dto.regraId
           ? `Regra com id ${dto.regraId} não encontrada.`
-          : 'Nenhuma regra do tipo "escala" está cadastrada (ex: 5x1). Cadastre uma regra ou informe regraId explicitamente.',
+          : 'Nenhuma regra do tipo "escala" está cadastrada (ex: 5x1). ' +
+            'Cadastre uma regra ou informe regraId explicitamente.',
       );
     }
 
-    // Candidatos: os funcionários informados, ou (se não vier
-    // funcionarioIds) todos os ativos. Separados em dois grupos:
-    // TITULARES (têm turnoPadraoId — entram no rodízio de turno fixo) e
-    // CORINGAS (coringa=true — não têm turno próprio, cobrem quem
-    // estiver de folga no dia). Quem não é coringa e não tem turno
-    // padrão fica de fora, listado em funcionariosSemTurnoPadrao.
-    const candidatos = dto.funcionarioIds?.length
-      ? await this.prisma.funcionario.findMany({
-          where: { id: { in: dto.funcionarioIds } },
+    // ------------------------------------------------------------
+    // 1. Carregar
+    // ------------------------------------------------------------
+    const [turnosDoPosto, candidatos, intrajornada, interjornada, cargaSemanal] =
+      await Promise.all([
+        this.prisma.turno.findMany({
+          where: { postoId: dto.postoId },
+          include: { demandas: true },
+          orderBy: { horaInicio: 'asc' },
+        }),
+        this.prisma.funcionario.findMany({
+          where: dto.funcionarioIds?.length
+            ? { id: { in: dto.funcionarioIds } }
+            : { status: true, postoId: dto.postoId },
+          include: { habilitacoes: true, turnoPadrao: true },
           orderBy: { id: 'asc' },
-        })
-      : await this.prisma.funcionario.findMany({
-          where: { status: true },
-          orderBy: { id: 'asc' },
-        });
+        }),
+        this.regras.buscarIntervaloIntrajornada(),
+        this.regras.buscarIntervaloInterjornada(),
+        this.regras.buscarCargaHorariaSemanal(),
+      ]);
 
+    if (turnosDoPosto.length === 0) {
+      throw new BadRequestException(
+        `O posto "${posto.nome}" não tem nenhum turno cadastrado. ` +
+          'A escala é gerada a partir da grade de horários do posto: ' +
+          'cadastre os turnos na tela Turnos antes de gerar.',
+      );
+    }
     if (candidatos.length === 0) {
       throw new BadRequestException(
-        'Nenhum funcionário encontrado para gerar a escala.',
+        dto.funcionarioIds?.length
+          ? 'Nenhum funcionário encontrado para gerar a escala.'
+          : `Nenhum funcionário ativo está vinculado ao posto "${posto.nome}". ` +
+            'Vincule os funcionários ao posto no cadastro, ou informe funcionarioIds explicitamente.',
       );
     }
 
-    const funcionariosSemTurnoPadrao = candidatos
-      .filter((f) => !f.coringa && !f.turnoPadraoId)
+    const deOutroPosto = candidatos.filter(
+      (f) => f.postoId !== null && f.postoId !== dto.postoId,
+    );
+    if (deOutroPosto.length > 0) {
+      throw new BadRequestException(
+        `Estes funcionários estão vinculados a outro posto e não podem entrar na escala de "${posto.nome}": ` +
+          `${deOutroPosto.map((f) => f.nome).join(', ')}.`,
+      );
+    }
+
+    // Quem pode ser escalado: quem tem turno de casa, ou quem tem
+    // habilitação. Sem nenhum dos dois o cadastro está incompleto e o
+    // motor não tem como adivinhar onde a pessoa entra.
+    const idsDosTurnos = new Set(turnosDoPosto.map((t) => t.id));
+    const escalaveis = candidatos.filter(
+      (f) =>
+        (f.turnoPadraoId !== null && idsDosTurnos.has(f.turnoPadraoId)) ||
+        f.habilitacoes.some((h) => idsDosTurnos.has(h.turnoId)),
+    );
+    const semTurno = candidatos
+      .filter((f) => !escalaveis.includes(f))
       .map((f) => ({ id: f.id, nome: f.nome }));
 
-    const titulares = candidatos.filter(
-      (f): f is typeof f & { turnoPadraoId: number } =>
-        !f.coringa && !!f.turnoPadraoId,
-    );
-
-    const coringas = candidatos.filter((f) => f.coringa);
-
-    if (titulares.length === 0) {
+    if (escalaveis.length === 0) {
       throw new BadRequestException(
-        'Nenhum dos funcionários elegíveis tem um turno padrão definido (e nenhum é coringa). ' +
-          'Defina o turno padrão no cadastro do funcionário, ou marque-o como coringa, antes de gerar a escala.',
+        'Nenhum dos funcionários selecionados tem turno padrão nem habilitação ' +
+          `em algum turno de "${posto.nome}". Complete o cadastro deles antes de gerar a escala.`,
       );
     }
 
-    const escala = await this.escalaRepository.create({
-      dataInic: dataInicio,
-      dataFim,
-      postoId: dto.postoId,
-      regraId: regraEscala.id,
+    const idsEscalaveis = escalaveis.map((f) => f.id);
+    const [ausencias, historico] = await Promise.all([
+      this.prisma.ausencia.findMany({
+        where: {
+          funcionarioId: { in: idsEscalaveis },
+          dataInic: { lte: dataFim },
+          dataFim: { gte: dataInicio },
+        },
+      }),
+      // Os dias já trabalhados na semana ANTERIOR ao período. Sem isso,
+      // quem vinha trabalhando desde o fim do mês passado começa o mês
+      // novo com o contador de dias seguidos zerado no plano — e o mês
+      // emendado estoura o RN06 na primeira semana. Era um defeito
+      // silencioso da versão anterior, que só olhava os dias do período.
+      this.prisma.alocacao.findMany({
+        where: {
+          funcionarioId: { in: idsEscalaveis },
+          data: {
+            gte: normalizeDate(inicioDoHistorico(inicioIso)),
+            lt: dataInicio,
+          },
+        },
+        select: { funcionarioId: true, data: true, turnoId: true },
+      }),
+    ]);
+
+    // ------------------------------------------------------------
+    // 2. Planejar
+    // ------------------------------------------------------------
+    const { trabalho, descanso } = parseEscalaCiclo(regraEscala.valor);
+    const dias = montarDias(inicioIso, fimIso);
+
+    // Turnos que entram na conta: os do posto, mais qualquer turno de
+    // histórico (pra interjornada e carga da semana da virada).
+    const idsHistorico = new Set(historico.map((a) => a.turnoId));
+    const turnosExtras = await this.prisma.turno.findMany({
+      where: {
+        id: { in: [...idsHistorico].filter((id) => !idsDosTurnos.has(id)) },
+      },
     });
 
-    const alocacoesCriadas: Alocacao[] = [];
+    const paraDominio = (t: {
+      id: number;
+      descricao: string | null;
+      horaInicio: Date;
+      horaFim: Date;
+    }): TurnoDominio => ({
+      id: t.id,
+      nome: t.descricao ?? `${formatTime(t.horaInicio)}–${formatTime(t.horaFim)}`,
+      inicio: horaDecimal(t.horaInicio),
+      fim: horaDecimal(t.horaFim),
+      // O intervalo intrajornada não é hora trabalhada: descontar aqui,
+      // uma vez, é o que garante que a validação, o PDF e a grade
+      // mostrem o mesmo número.
+      duracaoEfetiva: Math.max(0, shiftDurationHours(t) - intrajornada),
+    });
 
-    type Resumo = {
-      funcionarioId: number;
-      nome: string;
-      turnoPadraoId: number | null;
-      coringa: boolean;
-      diasTrabalhados: string[];
-      folgas: { data: string; motivo: string }[];
-      // Só preenchido pra coringa: qual turno (de qual titular) ele
-      // cobriu em cada dia trabalhado — o turno dele muda todo dia.
-      coberturas: {
-        data: string;
-        turnoId: number;
-        funcionarioCobertoId: number;
-        funcionarioCobertoNome: string;
-      }[];
+    const demandas: DemandaTurno[] = turnosDoPosto.map((t) => ({
+      turnoId: t.id,
+      porDiaDaSemana: Array.from({ length: 7 }, (_, diaSemana) => {
+        const cadastrada = t.demandas.find((d) => d.diaSemana === diaSemana);
+        // Turno sem demanda cadastrada pede uma pessoa por dia — que é
+        // o comportamento que o sistema sempre teve.
+        return cadastrada ? cadastrada.quantidade : 1;
+      }),
+    }));
+
+    const ausenciasPorFuncionario = new Map<number, Set<string>>();
+    for (const ausencia of ausencias) {
+      const conjunto = ausenciasPorFuncionario.get(ausencia.funcionarioId) ?? new Set<string>();
+      for (
+        const cursor = normalizeDate(ausencia.dataInic);
+        cursor <= ausencia.dataFim;
+        cursor.setUTCDate(cursor.getUTCDate() + 1)
+      ) {
+        conjunto.add(formatDate(cursor));
+      }
+      ausenciasPorFuncionario.set(ausencia.funcionarioId, conjunto);
+    }
+
+    const pessoas: Pessoa[] = escalaveis.map((f) => {
+      const habilitados = new Set<number>(
+        f.habilitacoes.map((h) => h.turnoId).filter((id) => idsDosTurnos.has(id)),
+      );
+      if (f.turnoPadraoId !== null && idsDosTurnos.has(f.turnoPadraoId)) {
+        habilitados.add(f.turnoPadraoId);
+      }
+      return {
+        id: f.id,
+        nome: f.nome,
+        turnosHabilitados: [...habilitados],
+        turnoPreferido: f.turnoPadraoId,
+        ausencias: ausenciasPorFuncionario.get(f.id) ?? new Set<string>(),
+        nuncaNosDiasDaSemana: new Set(f.diasSemanaVetados),
+      };
+    });
+
+    const problema: ProblemaEscala = {
+      dias,
+      vagas: montarVagas(dias, demandas),
+      pessoas,
+      turnos: [...turnosDoPosto, ...turnosExtras].map(paraDominio),
+      limites: {
+        cicloTrabalho: trabalho,
+        cicloDescanso: descanso,
+        // O menor entre o que a regra de escala pede (RN06) e as 6 do
+        // descanso semanal remunerado (RN07).
+        maxConsecutivos: Math.min(trabalho, 6),
+        horasSemana: cargaSemanal,
+        interjornada,
+        permitirForaDoPreferido: dto.permitirForaDoPreferido ?? false,
+      },
+      historico: historico.map((a) => ({
+        pessoaId: a.funcionarioId,
+        diaIso: formatDate(a.data),
+        turnoId: a.turnoId,
+      })),
     };
-    const resumoPorFuncionario = new Map<number, Resumo>();
-    for (const titular of titulares) {
-      resumoPorFuncionario.set(titular.id, {
-        funcionarioId: titular.id,
-        nome: titular.nome,
-        turnoPadraoId: titular.turnoPadraoId,
-        coringa: false,
-        diasTrabalhados: [],
-        folgas: [],
-        coberturas: [],
-      });
-    }
-    for (const coringaFuncionario of coringas) {
-      resumoPorFuncionario.set(coringaFuncionario.id, {
-        funcionarioId: coringaFuncionario.id,
-        nome: coringaFuncionario.nome,
-        turnoPadraoId: null,
-        coringa: true,
-        diasTrabalhados: [],
-        folgas: [],
-        coberturas: [],
-      });
-    }
 
-    // Ciclo de trabalho/descanso da regra (ex: "5x1" -> trabalha 5,
-    // descansa 1 -> ciclo de 6 dias). Cada titular começa esse ciclo
-    // num deslocamento diferente (a posição dele nesta lista), pra
-    // escalonar as folgas entre os titulares do posto.
-    const { trabalho, descanso } = parseEscalaCiclo(regraEscala.valor);
-    const cicloLength = trabalho + descanso;
+    const plano = planejar(problema);
 
-    const coberturasPendentes: {
-      data: string;
-      funcionario: string;
-      motivo: string;
-    }[] = [];
-
-    // Loop DIA a dia (não mais funcionário a funcionário): pra cada
-    // dia, primeiro decide quem dos titulares trabalha ou folga; só
-    // DEPOIS disso os coringas entram, um a um, cobrindo as folgas do
-    // dia — porque o turno do coringa é sempre o de quem ele cobre,
-    // então só dá pra saber depois de decidir os titulares do dia.
-    //
-    // diaIndice é a data em número absoluto de dias (desde a época
-    // Unix), NÃO um contador relativo ao início desta escala. Foi
-    // relativo antes, e isso quebrava quando dava pra gerar o mês
-    // seguinte pro mesmo posto: o rodízio "reiniciava" do zero em cada
-    // escala nova, mas o RN06/RN07 (dias consecutivos) olham TODAS as
-    // alocações do funcionário no banco, sem se importar com qual
-    // escala — contam de verdade, cruzando o fim do mês anterior. O
-    // rodízio "reiniciado" achava que ainda faltavam dias de trabalho
-    // pro titular quando na prática ele já vinha de uma sequência do
-    // mês anterior, e o RN06/RN07 forçava uma folga um dia ANTES da
-    // programada — e como isso valia pra cada titular ao mesmo tempo
-    // (index diferente, mas todos "reiniciando" junto), duas pessoas
-    // acabavam de folga no mesmo dia de novo, só que agora só nos
-    // primeiros dias da escala nova. Com diaIndice absoluto, o rodízio
-    // continua de onde parou no mês anterior — sem descontinuidade — e
-    // fica sempre de acordo com o que o RN06/RN07 já enxergam.
-    for (
-      let dataAtual = new Date(dataInicio);
-      dataAtual <= dataFim;
-      dataAtual.setUTCDate(dataAtual.getUTCDate() + 1)
-    ) {
-      const diaIndice = Math.floor(dataAtual.getTime() / 86_400_000);
-      const aCobrirHoje: {
-        funcionarioId: number;
-        nome: string;
-        turnoId: number;
-      }[] = [];
-
-      for (let indice = 0; indice < titulares.length; indice++) {
-        const titular = titulares[indice];
-        const resumo = resumoPorFuncionario.get(titular.id)!;
-        const deslocamento = indice % cicloLength;
-        const posicaoNoCiclo = (diaIndice + deslocamento) % cicloLength;
-        const folgaProgramada = posicaoNoCiclo >= trabalho;
-
-        if (folgaProgramada) {
-          resumo.folgas.push({
-            data: formatDate(dataAtual),
-            motivo: `Folga programada pelo rodízio ${trabalho}x${descanso} (evita coincidir com a folga de outro funcionário do posto).`,
+    // ------------------------------------------------------------
+    // 3. Gravar (ou não, se for simulação)
+    // ------------------------------------------------------------
+    const gravado = dto.simular
+      ? null
+      : await this.prisma.$transaction(async (tx) => {
+          const criada = await tx.escala.create({
+            data: {
+              dataInic: dataInicio,
+              dataFim,
+              postoId: dto.postoId,
+              regraId: regraEscala.id,
+            },
+            include: { posto: true, regra: true },
           });
-          aCobrirHoje.push({
-            funcionarioId: titular.id,
-            nome: titular.nome,
-            turnoId: titular.turnoPadraoId,
+          await tx.alocacao.createMany({
+            data: plano.atribuicoes.map((a) => ({
+              data: normalizeDate(a.diaIso),
+              funcionarioId: a.pessoaId,
+              escalaId: criada.id,
+              turnoId: a.turnoId,
+            })),
           });
-          continue;
-        }
-
-        const resultado = await this.regras.validarAlocacao({
-          funcionarioId: titular.id,
-          data: new Date(dataAtual),
-          turnoId: titular.turnoPadraoId,
-          escalaId: escala.id,
-          // Dia de TRABALHO programado pelo rodízio: quem garante o
-          // limite legal aqui é o RN06 (máx. dias seguidos), não o RN04
-          // (44h por semana ISO) — o ciclo do rodízio não é múltiplo de
-          // 7, então o RN04 bloquearia um dia de trabalho normal do
-          // rodízio quase toda semana (ver comentário no
-          // ContextoAlocacao), gerando folga extra não programada e
-          // derrubando a garantia de "só uma folga por dia no posto".
-          ignorarRN04: true,
+          // createMany não devolve as linhas criadas, e a tela precisa
+          // dos ids pra permitir editar cada célula da grade logo
+          // depois de gerar. Uma leitura a mais dentro da mesma
+          // transação é mais barato do que inserir uma por uma.
+          const alocacoes = await tx.alocacao.findMany({
+            where: { escalaId: criada.id },
+            orderBy: [{ data: 'asc' }, { turnoId: 'asc' }],
+          });
+          return { escala: criada, alocacoes };
         });
+    const escala = gravado?.escala ?? null;
 
-        if (resultado.valido) {
-          const alocacao = await this.alocacaoRepository.create({
-            data: new Date(dataAtual),
-            funcionarioId: titular.id,
-            escalaId: escala.id,
-            turnoId: titular.turnoPadraoId,
-          });
-          alocacoesCriadas.push(alocacao);
-          resumo.diasTrabalhados.push(formatDate(dataAtual));
-        } else {
-          resumo.folgas.push({
-            data: formatDate(dataAtual),
-            motivo: resultado.motivo,
-          });
-          aCobrirHoje.push({
-            funcionarioId: titular.id,
-            nome: titular.nome,
-            turnoId: titular.turnoPadraoId,
-          });
-        }
-      }
-
-      // Coringas cobrem, um a um, as folgas de hoje que ainda faltam
-      // cobrir. Se um coringa não passar nas regras (ex: interjornada
-      // com o turno que ele trabalhou ontem), a cobertura continua
-      // pendente pro PRÓXIMO coringa tentar o mesmo alvo.
-      let proximaCobertura = 0;
-      for (const coringaFuncionario of coringas) {
-        const resumoCoringa = resumoPorFuncionario.get(coringaFuncionario.id)!;
-        const alvo = aCobrirHoje[proximaCobertura];
-
-        if (!alvo) {
-          resumoCoringa.folgas.push({
-            data: formatDate(dataAtual),
-            motivo:
-              'Sem cobertura necessária hoje — nenhum titular estava de folga.',
-          });
-          continue;
-        }
-
-        const resultado = await this.regras.validarAlocacao({
-          funcionarioId: coringaFuncionario.id,
-          data: new Date(dataAtual),
-          turnoId: alvo.turnoId,
-          escalaId: escala.id,
-        });
-
-        if (resultado.valido) {
-          const alocacao = await this.alocacaoRepository.create({
-            data: new Date(dataAtual),
-            funcionarioId: coringaFuncionario.id,
-            escalaId: escala.id,
-            turnoId: alvo.turnoId,
-          });
-          alocacoesCriadas.push(alocacao);
-          resumoCoringa.diasTrabalhados.push(formatDate(dataAtual));
-          resumoCoringa.coberturas.push({
-            data: formatDate(dataAtual),
-            turnoId: alvo.turnoId,
-            funcionarioCobertoId: alvo.funcionarioId,
-            funcionarioCobertoNome: alvo.nome,
-          });
-          proximaCobertura++;
-        } else {
-          resumoCoringa.folgas.push({
-            data: formatDate(dataAtual),
-            motivo: resultado.motivo,
-          });
-        }
-      }
-
-      for (const descoberta of aCobrirHoje.slice(proximaCobertura)) {
-        coberturasPendentes.push({
-          data: formatDate(dataAtual),
-          funcionario: descoberta.nome,
-          motivo:
-            coringas.length === 0
-              ? 'Nenhum coringa incluído nesta geração.'
-              : 'Nenhum coringa disponível conseguiu cobrir esta folga.',
-        });
-      }
-    }
-
-    // Aviso honesto: com mais titulares do que dias no ciclo, o
-    // rodízio começa a repetir deslocamento e duas pessoas podem
-    // acabar com folga no mesmo dia (mesmo com coringa, só um deles
-    // seria coberto).
-    const avisoRodizio =
-      titulares.length > cicloLength
-        ? `Este posto tem ${titulares.length} funcionário(s) com turno fixo para um ciclo de ${cicloLength} dias (${trabalho}x${descanso}). ` +
-          'A partir do funcionário de número ' +
-          `${cicloLength + 1}, o rodízio repete deslocamento e pode haver mais de uma folga no mesmo dia.`
-        : null;
-
+    // A resposta já vai com nomes e horários resolvidos: quem consome
+    // não deveria precisar cruzar id com cadastro pra montar a tela.
+    const turnoPorId = new Map(turnosDoPosto.map((t) => [t.id, t]));
     return {
       escala,
-      alocacoesCriadas,
-      totalAlocacoesCriadas: alocacoesCriadas.length,
-      resumoPorFuncionario: Array.from(resumoPorFuncionario.values()),
-      funcionariosSemTurnoPadrao,
-      avisoRodizio,
-      coberturasPendentes,
+      simulacao: Boolean(dto.simular),
+      periodo: { inicio: inicioIso, fim: fimIso },
+      regra: {
+        id: regraEscala.id,
+        descricao: regraEscala.descricao,
+        valor: regraEscala.valor,
+        ciclo: { trabalho, descanso },
+      },
+      turnos: turnosDoPosto.map((t) => ({
+        id: t.id,
+        descricao: t.descricao,
+        horaInicio: formatTime(t.horaInicio),
+        horaFim: formatTime(t.horaFim),
+        demandaPorDiaDaSemana: demandas.find((d) => d.turnoId === t.id)!.porDiaDaSemana,
+      })),
+      pessoas: escalaveis.map((f) => ({
+        id: f.id,
+        nome: f.nome,
+        // Coringa não é mais coluna: é quem não tem horário de casa.
+        coringa: f.turnoPadraoId === null,
+        turnoPadraoId: f.turnoPadraoId,
+      })),
+      funcionariosSemTurno: semTurno,
+      feriadosNoPeriodo: dias.filter((d) => d.ehFeriadoMaster).map((d) => d.iso),
+      totalVagas: problema.vagas.length,
+      totalAlocacoes: plano.atribuicoes.length,
+      // Quando gravou, vão os ids reais (a grade precisa deles pra
+      // editar célula por célula). Numa simulação não existe id: o
+      // plano ainda não é uma escala.
+      alocacoes: plano.atribuicoes.map((a) => {
+        const turno = turnoPorId.get(a.turnoId);
+        const gravada = gravado?.alocacoes.find(
+          (g) =>
+            g.funcionarioId === a.pessoaId &&
+            g.turnoId === a.turnoId &&
+            formatDate(g.data) === a.diaIso,
+        );
+        return {
+          id: gravada?.id ?? null,
+          data: a.diaIso,
+          funcionarioId: a.pessoaId,
+          turnoId: a.turnoId,
+          foraDoPreferido: a.foraDoPreferido,
+          turno: turno
+            ? {
+                horaInicio: formatTime(turno.horaInicio),
+                horaFim: formatTime(turno.horaFim),
+              }
+            : null,
+        };
+      }),
+      folgas: plano.folgas,
+      vagasVazias: plano.vagasVazias,
+      // Códigos, não frases: o texto de cada diagnóstico mora no
+      // frontend, num lugar só. A versão anterior devolvia cinco campos
+      // `avisoX: string | null` com o parágrafo já montado, o que
+      // espalhava a mesma informação em formatos diferentes e deixava a
+      // tela sem saber a gravidade de nada.
+      diagnosticos: plano.diagnosticos,
+      reparosAplicados: plano.reparosAplicados,
     };
   }
 }

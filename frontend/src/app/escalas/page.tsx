@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { apiGet, API_URL } from "@/lib/api";
+import { DeleteButton } from "@/components/delete-button";
 
 type Escala = {
   id: number;
@@ -74,6 +75,10 @@ export default async function EscalasPage() {
                       >
                         Abrir →
                       </Link>
+                      <DeleteButton
+                        path={`/escalas/${e.id}`}
+                        confirmMessage={`Excluir a escala #${e.id} (${e.posto?.nome ?? "posto"}, ${e.dataInic} a ${e.dataFim})? Isso apaga também todas as alocações geradas para ela — não dá pra desfazer. Use quando a geração saiu errada e você vai gerar de novo.`}
+                      />
                     </div>
                   </td>
                 </tr>

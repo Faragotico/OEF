@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { usePathname, useRouter } from "next/navigation";
 
 type Funcionario = { id: number; nome: string; coringa: boolean };
 type Turno = {
@@ -23,6 +23,15 @@ type Alocacao = {
   escalaId: number;
   turnoId: number;
 };
+type FiltrosAtuais = {
+  funcionarioId?: string;
+  turnoId?: string;
+  escalaId?: string;
+  dataInicio?: string;
+  dataFim?: string;
+  substituido?: string;
+  page?: string;
+};
 
 const inputClass =
   "border-2 border-black bg-white px-3 py-2 text-sm text-black dark:bg-zinc-900 dark:text-white";
@@ -38,77 +47,76 @@ function escalaLabel(e: Escala) {
   return `#${e.id} — ${posto} (${e.dataInic} a ${e.dataFim})`;
 }
 
+// Antes este componente recebia a tabela INTEIRA de alocações e
+// filtrava/paginava no navegador (useMemo + slice sobre um array que
+// só cresce). Agora ele só recebe a PÁGINA já filtrada que o backend
+// devolveu (ver app/alocacoes/page.tsx) — este componente não filtra
+// nada, só mostra o que veio e navega pra uma nova URL quando o
+// usuário muda um filtro, o que faz o server component buscar de novo
+// com os parâmetros certos.
 export function AlocacoesFilter({
   alocacoes,
+  total,
+  page,
+  totalPaginas,
   funcionarios,
   turnos,
   escalas,
+  filtrosAtuais,
 }: {
   alocacoes: Alocacao[];
+  total: number;
+  page: number;
+  totalPaginas: number;
   funcionarios: Funcionario[];
   turnos: Turno[];
   escalas: Escala[];
+  filtrosAtuais: FiltrosAtuais;
 }) {
-  const [funcionarioId, setFuncionarioId] = useState("");
-  const [turnoId, setTurnoId] = useState("");
-  const [escalaId, setEscalaId] = useState("");
-  const [dataInicio, setDataInicio] = useState("");
-  const [dataFim, setDataFim] = useState("");
-  const [substituido, setSubstituido] = useState("");
-  const [pagina, setPagina] = useState(1);
-
-  const POR_PAGINA = 25;
+  const router = useRouter();
+  const pathname = usePathname();
 
   const funcionarioById = new Map(funcionarios.map((f) => [f.id, f.nome]));
   const turnoById = new Map(turnos.map((t) => [t.id, turnoLabel(t)]));
   const escalaById = new Map(escalas.map((e) => [e.id, e]));
 
-  const filtradas = useMemo(() => {
-    return alocacoes.filter((a) => {
-      if (funcionarioId && a.funcionarioId !== Number(funcionarioId)) return false;
-      if (turnoId && a.turnoId !== Number(turnoId)) return false;
-      if (escalaId && a.escalaId !== Number(escalaId)) return false;
-      if (dataInicio && a.data < dataInicio) return false;
-      if (dataFim && a.data > dataFim) return false;
-      if (substituido === "sim" && !a.ehSubstituido) return false;
-      if (substituido === "nao" && a.ehSubstituido) return false;
-      return true;
-    });
-  }, [alocacoes, funcionarioId, turnoId, escalaId, dataInicio, dataFim, substituido]);
-
   const filtrosAtivos =
-    !!funcionarioId ||
-    !!turnoId ||
-    !!escalaId ||
-    !!dataInicio ||
-    !!dataFim ||
-    !!substituido;
+    !!filtrosAtuais.funcionarioId ||
+    !!filtrosAtuais.turnoId ||
+    !!filtrosAtuais.escalaId ||
+    !!filtrosAtuais.dataInicio ||
+    !!filtrosAtuais.dataFim ||
+    !!filtrosAtuais.substituido;
+
+  // Troca um filtro e navega. Sempre volta pra página 1 — senão dá pra
+  // ficar "perdido" numa página que não existe mais depois que um
+  // filtro reduz o total.
+  function navegarComFiltro(chave: keyof FiltrosAtuais, valor: string) {
+    const proximos: FiltrosAtuais = { ...filtrosAtuais, [chave]: valor || undefined };
+    delete proximos.page;
+    navegar(proximos);
+  }
+
+  function navegarComPagina(novaPagina: number) {
+    navegar({ ...filtrosAtuais, page: String(novaPagina) });
+  }
+
+  function navegar(params: FiltrosAtuais) {
+    const qs = new URLSearchParams();
+    if (params.funcionarioId) qs.set("funcionarioId", params.funcionarioId);
+    if (params.turnoId) qs.set("turnoId", params.turnoId);
+    if (params.escalaId) qs.set("escalaId", params.escalaId);
+    if (params.dataInicio) qs.set("dataInicio", params.dataInicio);
+    if (params.dataFim) qs.set("dataFim", params.dataFim);
+    if (params.substituido) qs.set("substituido", params.substituido);
+    if (params.page) qs.set("page", params.page);
+    const texto = qs.toString();
+    router.push(texto ? `${pathname}?${texto}` : pathname);
+  }
 
   function limparFiltros() {
-    setFuncionarioId("");
-    setTurnoId("");
-    setEscalaId("");
-    setDataInicio("");
-    setDataFim("");
-    setSubstituido("");
-    setPagina(1);
+    router.push(pathname);
   }
-
-  // Muda o filtro, volta pra página 1 — senão dá pra ficar "perdido"
-  // numa página que não existe mais depois de um filtro reduzir o total.
-  function comReset<T>(setter: (v: T) => void) {
-    return (v: T) => {
-      setter(v);
-      setPagina(1);
-    };
-  }
-
-  const totalPaginas = Math.max(1, Math.ceil(filtradas.length / POR_PAGINA));
-  const paginaAtual = Math.min(pagina, totalPaginas);
-  const alocacoesDaPagina = filtradas.slice(
-    (paginaAtual - 1) * POR_PAGINA,
-    paginaAtual * POR_PAGINA,
-  );
 
   return (
     <div className="flex flex-col gap-4">
@@ -116,8 +124,8 @@ export function AlocacoesFilter({
         <label className="flex flex-col gap-1 text-sm text-black dark:text-zinc-50">
           Funcionário
           <select
-            value={funcionarioId}
-            onChange={(e) => comReset(setFuncionarioId)(e.target.value)}
+            value={filtrosAtuais.funcionarioId ?? ""}
+            onChange={(e) => navegarComFiltro("funcionarioId", e.target.value)}
             className={inputClass}
           >
             <option value="">Todos</option>
@@ -133,8 +141,8 @@ export function AlocacoesFilter({
         <label className="flex flex-col gap-1 text-sm text-black dark:text-zinc-50">
           Turno
           <select
-            value={turnoId}
-            onChange={(e) => comReset(setTurnoId)(e.target.value)}
+            value={filtrosAtuais.turnoId ?? ""}
+            onChange={(e) => navegarComFiltro("turnoId", e.target.value)}
             className={inputClass}
           >
             <option value="">Todos</option>
@@ -149,8 +157,8 @@ export function AlocacoesFilter({
         <label className="flex flex-col gap-1 text-sm text-black dark:text-zinc-50">
           Escala
           <select
-            value={escalaId}
-            onChange={(e) => comReset(setEscalaId)(e.target.value)}
+            value={filtrosAtuais.escalaId ?? ""}
+            onChange={(e) => navegarComFiltro("escalaId", e.target.value)}
             className={inputClass}
           >
             <option value="">Todas</option>
@@ -166,8 +174,8 @@ export function AlocacoesFilter({
           De
           <input
             type="date"
-            value={dataInicio}
-            onChange={(e) => comReset(setDataInicio)(e.target.value)}
+            value={filtrosAtuais.dataInicio ?? ""}
+            onChange={(e) => navegarComFiltro("dataInicio", e.target.value)}
             className={inputClass}
           />
         </label>
@@ -176,8 +184,8 @@ export function AlocacoesFilter({
           Até
           <input
             type="date"
-            value={dataFim}
-            onChange={(e) => comReset(setDataFim)(e.target.value)}
+            value={filtrosAtuais.dataFim ?? ""}
+            onChange={(e) => navegarComFiltro("dataFim", e.target.value)}
             className={inputClass}
           />
         </label>
@@ -185,8 +193,8 @@ export function AlocacoesFilter({
         <label className="flex flex-col gap-1 text-sm text-black dark:text-zinc-50">
           Substituído?
           <select
-            value={substituido}
-            onChange={(e) => comReset(setSubstituido)(e.target.value)}
+            value={filtrosAtuais.substituido ?? ""}
+            onChange={(e) => navegarComFiltro("substituido", e.target.value)}
             className={inputClass}
           >
             <option value="">Todos</option>
@@ -198,9 +206,8 @@ export function AlocacoesFilter({
 
       <div className="flex items-center justify-between text-sm text-zinc-600 dark:text-zinc-400">
         <span>
-          {filtradas.length} de {alocacoes.length} alocações
-          {filtradas.length > 0 &&
-            ` · página ${paginaAtual} de ${totalPaginas}`}
+          {total} alocaç{total === 1 ? "ão" : "ões"}
+          {total > 0 && ` · página ${page} de ${totalPaginas}`}
         </span>
         {filtrosAtivos && (
           <button
@@ -225,7 +232,7 @@ export function AlocacoesFilter({
             </tr>
           </thead>
           <tbody>
-            {alocacoesDaPagina.map((a) => {
+            {alocacoes.map((a) => {
               const escala = escalaById.get(a.escalaId);
               return (
                 <tr
@@ -246,7 +253,7 @@ export function AlocacoesFilter({
                 </tr>
               );
             })}
-            {filtradas.length === 0 && (
+            {alocacoes.length === 0 && (
               <tr>
                 <td
                   colSpan={5}
@@ -260,23 +267,23 @@ export function AlocacoesFilter({
         </table>
       </div>
 
-      {filtradas.length > POR_PAGINA && (
+      {totalPaginas > 1 && (
         <div className="flex items-center justify-center gap-3 text-sm text-black dark:text-zinc-50">
           <button
             type="button"
-            disabled={paginaAtual <= 1}
-            onClick={() => setPagina((p) => Math.max(1, p - 1))}
+            disabled={page <= 1}
+            onClick={() => navegarComPagina(page - 1)}
             className="border-2 border-black bg-white px-3 py-1.5 text-xs font-bold uppercase tracking-wide shadow-[4px_4px_0_0_#000] transition-all hover:bg-red-50 active:translate-x-[2px] active:translate-y-[2px] active:shadow-none disabled:opacity-40 disabled:hover:bg-white dark:bg-zinc-900 dark:hover:bg-zinc-800"
           >
             ← Anterior
           </button>
           <span>
-            Página {paginaAtual} de {totalPaginas}
+            Página {page} de {totalPaginas}
           </span>
           <button
             type="button"
-            disabled={paginaAtual >= totalPaginas}
-            onClick={() => setPagina((p) => Math.min(totalPaginas, p + 1))}
+            disabled={page >= totalPaginas}
+            onClick={() => navegarComPagina(page + 1)}
             className="border-2 border-black bg-white px-3 py-1.5 text-xs font-bold uppercase tracking-wide shadow-[4px_4px_0_0_#000] transition-all hover:bg-red-50 active:translate-x-[2px] active:translate-y-[2px] active:shadow-none disabled:opacity-40 disabled:hover:bg-white dark:bg-zinc-900 dark:hover:bg-zinc-800"
           >
             Próxima →
