@@ -6,15 +6,15 @@
 import { PrismaClient } from '@prisma/client';
 import { gerarHashSenha } from '../src/helpers/seguranca.helpers';
 
+try {
+  process.loadEnvFile();
+} catch {
+  // sem .env: usa o que já estiver no ambiente
+}
+
 const prisma = new PrismaClient();
 
 async function main() {
-  try {
-    process.loadEnvFile();
-  } catch {
-    // sem .env: usa o que já estiver no ambiente
-  }
-
   const email = process.env.ADMIN_EMAIL?.trim().toLowerCase();
   const senha = process.env.ADMIN_SENHA;
   const nome = process.env.ADMIN_NOME?.trim() || 'Gestor';

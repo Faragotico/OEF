@@ -19,6 +19,12 @@
 // ============================================================
 import { PrismaClient } from '@prisma/client';
 
+try {
+  process.loadEnvFile();
+} catch {
+  /* sem .env: usa o ambiente */
+}
+
 const prisma = new PrismaClient();
 const hora = (h: string) => new Date(`1970-01-01T${h}:00Z`);
 
@@ -68,12 +74,6 @@ const EQUIPE = [
 ];
 
 async function main() {
-  try {
-    process.loadEnvFile();
-  } catch {
-    /* sem .env: usa o ambiente */
-  }
-
   const empresa = await prisma.empresa.upsert({
     where: { cnpj: '11223344556613' },
     update: {},
