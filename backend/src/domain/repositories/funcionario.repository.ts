@@ -5,20 +5,41 @@ import { PrismaService } from '../../infra/database/prisma.service';
 // O repository é o único lugar do sistema que conhece o Prisma.
 // Ele NÃO decide nada — só executa consultas. Regras de negócio
 // (ex: "CPF pode repetir?") não moram aqui, moram no service.
+//
+// create/update usam os tipos "Unchecked" porque o Funcionario tem FKs
+// (turnoPadraoId, postoId): o tipo "checked" exigiria a forma aninhada
+// (turnoPadrao: { connect: {...} }) em vez do id cru.
+//
+// `habilitacoes` entra no include porque é dela que o presenter deriva
+// se a pessoa é coringa (sem turno padrão, mas habilitada em outros) ou
+// se o cadastro está incompleto (sem turno padrão e sem habilitação
+// nenhuma). Sem o include, as duas situações ficariam indistinguíveis.
 @Injectable()
 export class FuncionarioRepository {
   constructor(private readonly prisma: PrismaService) {}
 
-  create(data: Prisma.FuncionarioCreateInput): Promise<Funcionario> {
-    return this.prisma.funcionario.create({ data });
+  private readonly include = {
+    turnoPadrao: true,
+    posto: true,
+    habilitacoes: true,
+  };
+
+  create(data: Prisma.FuncionarioUncheckedCreateInput): Promise<Funcionario> {
+    return this.prisma.funcionario.create({ data, include: this.include });
   }
 
   findAll(): Promise<Funcionario[]> {
-    return this.prisma.funcionario.findMany({ orderBy: { nome: 'asc' } });
+    return this.prisma.funcionario.findMany({
+      orderBy: { nome: 'asc' },
+      include: this.include,
+    });
   }
 
   findById(id: number): Promise<Funcionario | null> {
-    return this.prisma.funcionario.findUnique({ where: { id } });
+    return this.prisma.funcionario.findUnique({
+      where: { id },
+      include: this.include,
+    });
   }
 
   findByCpf(cpf: string): Promise<Funcionario | null> {
@@ -27,9 +48,13 @@ export class FuncionarioRepository {
 
   update(
     id: number,
-    data: Prisma.FuncionarioUpdateInput,
+    data: Prisma.FuncionarioUncheckedUpdateInput,
   ): Promise<Funcionario> {
-    return this.prisma.funcionario.update({ where: { id }, data });
+    return this.prisma.funcionario.update({
+      where: { id },
+      data,
+      include: this.include,
+    });
   }
 
   delete(id: number): Promise<Funcionario> {

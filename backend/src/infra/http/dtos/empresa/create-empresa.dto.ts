@@ -37,5 +37,12 @@ export class CreateEmpresaDto {
   @IsOptional() // contato pode não vir (é String? no schema)
   @IsString()
   @MaxLength(100, { message: 'O contato deve ter no máximo 100 caracteres.' })
+  // Telefone com DDD, com máscara: (XX) XXXX-XXXX (fixo) ou
+  // (XX) XXXXX-XXXX (celular) — mesmo formato já usado nas seeds.
+  // @IsOptional() faz esta validação ser pulada quando o campo não vem,
+  // então continua não-obrigatório.
+  @Matches(/^\(\d{2}\) \d{4,5}-\d{4}$/, {
+    message: 'O contato deve ser um telefone no formato (XX) XXXXX-XXXX ou (XX) XXXX-XXXX.',
+  })
   contato?: string;
 }

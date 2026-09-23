@@ -3,6 +3,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { EmpresaRepository } from '../repositories/empresa.repository';
 import { CreateEmpresaDto } from 'src/infra/http/dtos/empresa/create-empresa.dto';
 import { UpdateEmpresaDto } from 'src/infra/http/dtos/empresa/update-empresa.dto';
@@ -53,6 +54,23 @@ export class EmpresaService {
 
   async remove(id: number) {
     await this.findOne(id); // garante que existe antes de apagar
-    return this.repository.delete(id);
+    try {
+      return await this.repository.delete(id);
+    } catch (error) {
+      // P2003 aqui é o onDelete: Restrict do schema impedindo apagar
+      // uma empresa que ainda tem postos vinculados. Sem este catch,
+      // o Nest devolvia um 500 com o erro cru do Prisma em vez de uma
+      // mensagem que o gestor entende. Mesmo padrão do PostoTrabalho
+      // e do Turno.
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2003'
+      ) {
+        throw new ConflictException(
+          'Não é possível excluir: existem postos de trabalho vinculados a esta empresa.',
+        );
+      }
+      throw error;
+    }
   }
 }

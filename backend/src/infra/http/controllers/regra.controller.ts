@@ -44,6 +44,11 @@ export class RegraController {
     return this.service.update(id, dto);
   }
 
+  @Patch(':id/padrao') // PATCH /regras/3/padrao — sem corpo
+  marcarComoPadrao(@Param('id', ParseIntPipe) id: number) {
+    return this.service.marcarComoPadrao(id);
+  }
+
   @Delete(':id') // DELETE /regras/3
   remove(@Param('id', ParseIntPipe) id: number) {
     return this.service.remove(id);

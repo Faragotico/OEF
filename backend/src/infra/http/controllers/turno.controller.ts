@@ -7,6 +7,7 @@ import {
   ParseIntPipe,
   Patch,
   Post,
+  Query,
 } from '@nestjs/common';
 import { TurnoService } from 'src/domain/services/turno.service';
 import { CreateTurnoDto } from '../dtos/turno/create-turno.dto';
@@ -15,20 +16,25 @@ import { TurnoPresenter } from '../presenters/turno.presenter';
 
 // O controller é a PORTA DE ENTRADA HTTP. Ele só recebe a requisição,
 // extrai os dados e chama o service. Sem nenhuma regra de negócio.
-// @Controller('turno') = todas as rotas começam com /turno
-@Controller('turno')
+// @Controller('turnos') = todas as rotas começam com /turnos
+@Controller('turnos')
 export class TurnoController {
   constructor(private readonly service: TurnoService) {}
 
   @Post()
   async create(@Body() dto: CreateTurnoDto) {
     const turno = await this.service.create(dto);
-    return TurnoPresenter.toHTTP(turno);
+    return TurnoPresenter.toHTTP(turno!);
   }
 
+  // ?postoId=3 devolve só a grade de horários daquele posto — é o que
+  // a tela de geração precisa pra mostrar de quanta gente o posto
+  // precisa em cada dia antes de gerar.
   @Get()
-  async findAll() {
-    const turnos = await this.service.findAll();
+  async findAll(@Query('postoId') postoId?: string) {
+    const turnos = postoId
+      ? await this.service.findByPosto(Number(postoId))
+      : await this.service.findAll();
     return turnos.map((turno) => TurnoPresenter.toHTTP(turno));
   }
 
@@ -44,7 +50,7 @@ export class TurnoController {
     @Body() dto: UpdateTurnoDto,
   ) {
     const turno = await this.service.update(id, dto);
-    return TurnoPresenter.toHTTP(turno);
+    return TurnoPresenter.toHTTP(turno!);
   }
 
   @Delete(':id')

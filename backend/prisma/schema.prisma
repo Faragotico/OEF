@@ -32,9 +32,19 @@ model PostoTrabalho {
   localizacao String @map("local") @db.VarChar(150)
   empresaId   Int    @map("id_empresa")
 
-  // onDelete: Restrict = não deixa apagar uma empresa que ainda tem postos
-  empresa Empresa  @relation(fields: [empresaId], references: [id], onDelete: Restrict)
-  escalas Escala[]
+  // onDelete: NoAction = não deixa apagar uma empresa que ainda tem postos
+  // vinculados. Usamos NoAction em vez de Restrict por uma pegadinha do
+  // Postgres: os dois bloqueiam a exclusão do mesmo jeito, mas cada um
+  // lança um código de erro diferente (Restrict = 23001, NoAction =
+  // 23503) e o Prisma só reconhece 23503 como erro "conhecido" (P2003) —
+  // com Restrict o catch do service nunca disparava e o Nest devolvia
+  // um 500 cru em vez da mensagem de conflito.
+  empresa      Empresa       @relation(fields: [empresaId], references: [id], onDelete: NoAction)
+  escalas      Escala[]
+  funcionarios Funcionario[]
+  // A grade de horários do posto: quais turnos ele abre e, em cada um,
+  // de quanta gente precisa por dia da semana (ver Turno.demandas).
+  turnos       Turno[]
 
   @@map("posto_trabalho")
 }
@@ -54,6 +64,53 @@ model Funcionario {
   cargaHorariaSemanal Int     @map("carga_horaria_semanal")
   status              Boolean @default(true) // true = ativo (RN01)
 
+  // Turno "de casa" do funcionário — o horário que ele trabalha na
+  // maioria dos dias (ex: sempre das 07:45 às 14:00). É o que o motor
+  // chama de turno PREFERIDO: por padrão a pessoa só é escalada nele,
+  // que é o que as escalas reais mostram (cada um no mesmo horário o
+  // mês inteiro).
+  //
+  // Nulo significa "não tem horário de casa". Combinado com as
+  // habilitações abaixo, é isso que define o que a tela chama de
+  // coringa — e o que separa um coringa de um cadastro incompleto:
+  //
+  //   turnoPadrao preenchido            -> titular
+  //   turnoPadrao nulo + habilitações   -> coringa (cobre vários turnos)
+  //   turnoPadrao nulo + nenhuma        -> cadastro incompleto, fora da geração
+  //
+  // A coluna booleana `coringa` que existia aqui saiu: ela dizia a
+  // mesma coisa que a ausência de turno padrão, e duas colunas com o
+  // mesmo significado é como se cria o problema de uma delas ficar
+  // desatualizada. A API continua devolvendo `coringa`, calculado no
+  // presenter.
+  turnoPadraoId Int?   @map("id_turno_padrao")
+  turnoPadrao   Turno? @relation("TurnoPadrao", fields: [turnoPadraoId], references: [id], onDelete: SetNull)
+
+  // Em que OUTROS turnos esta pessoa pode ser escalada, além do turno
+  // de casa. É a qualificação do coringa (que tem várias e nenhum
+  // padrão) e também a folga de manobra de um titular que aceita cobrir
+  // outro horário quando o gestor libera isso na geração.
+  habilitacoes FuncionarioTurno[]
+
+  // Dias da semana em que esta pessoa nunca é escalada (0 = domingo).
+  // Caso real observado: um titular que nunca trabalha domingo, e até
+  // aqui isso só existia como ajuste manual depois de
+  // gerar. Array em vez de tabela porque são no máximo sete valores
+  // fixos e nunca precisam ser consultados de fora do funcionário.
+  diasSemanaVetados Int[] @map("dias_semana_vetados")
+
+  // Posto onde a pessoa trabalha. Nulável porque o Dicionário de Dados
+  // original não prevê a coluna (funcionário e posto se encontravam só
+  // pela Alocacao) e porque cadastros antigos podem estar sem ela — mas
+  // é o que permite a geração automática montar a escala com a equipe
+  // DAQUELE posto. Sem esse vínculo, "gerar escala" sem marcar ninguém
+  // pegava todos os funcionários ativos do sistema e misturava equipes
+  // de postos diferentes no mesmo rodízio.
+  // onDelete: SetNull = apagar um posto não apaga o cadastro de quem
+  // trabalhava nele (registro de pessoa não se perde por causa disso).
+  postoId Int?           @map("id_posto")
+  posto   PostoTrabalho? @relation(fields: [postoId], references: [id], onDelete: SetNull)
+
   alocacoes Alocacao[]
   ausencias Ausencia[]
 
@@ -65,6 +122,17 @@ model Regra {
   descricao String @db.VarChar(500)
   tipo      String @db.VarChar(50) // ex: 'escala', 'intervalo_interjornada'
   valor     String @db.VarChar(50) // ex: '5x1', '11', '44'
+
+  // Só importa pro tipo 'escala': é o único tipo que pode ter VÁRIAS
+  // regras ao mesmo tempo (5x1, 6x1...), então precisa de alguém
+  // marcado como o que a geração usa quando ninguém escolhe explicitamente
+  // (dto.regraId). Os outros tipos não usam este campo — já são
+  // únicos por natureza (ver RegraService.ensureTipoUnicoDisponivel),
+  // não existe "escolher" entre duas. Não é o mesmo que RN07: o
+  // descanso semanal remunerado (máx. 6 dias seguidos) é piso legal
+  // fixo e não tem padrão configurável — só a ESCOLHA entre padrões
+  // legais (5x1, 6x1, 5x2...) é que precisa de um default.
+  padrao Boolean @default(false)
 
   escalas Escala[]
 
@@ -83,9 +151,71 @@ model Turno {
   horaInicio DateTime @map("hora_inic") @db.Time()
   horaFim    DateTime @map("hora_fim") @db.Time()
 
+  // Posto a que este turno pertence. É a mudança que dá ao posto uma
+  // GRADE DE HORÁRIOS própria, em vez de a grade ser só "o conjunto
+  // dos horários das pessoas que trabalham lá".
+  //
+  // Isso permite representar um turno que existe no posto sem ser o
+  // horário de casa de ninguém — um horário extra cobrindo o pico de
+  // demanda, que o modelo anterior não sabia descrever.
+  //
+  // Nulável porque o "horário personalizado" da tela de Alocação cria
+  // turnos avulsos, que não pertencem a posto nenhum.
+  postoId Int?           @map("id_posto")
+  posto   PostoTrabalho? @relation(fields: [postoId], references: [id], onDelete: SetNull)
+
+  // De quanta gente este turno precisa em cada dia da semana.
+  demandas TurnoDemanda[]
+
   alocacoes Alocacao[]
+  // Funcionários que têm este turno como padrão pessoal (ver
+  // Funcionario.turnoPadraoId).
+  funcionariosComTurnoPadrao Funcionario[]      @relation("TurnoPadrao")
+  habilitados                FuncionarioTurno[]
 
   @@map("turno")
+}
+
+// ============================================================
+// Quanta gente o turno precisa em cada dia da semana.
+//
+// É a peça que faltava pro sistema representar o que toda escala real
+// faz: domingo e feriado com meia equipe. Como no motor novo a folga é
+// o RESÍDUO da demanda (quem não ficou com vaga naquele dia está de
+// folga), baixar a demanda de domingo é o que faz mais gente ganhar
+// domingo de folga — sem precisar de nenhuma regra nova pra isso.
+//
+// quantidade = 0 significa que o turno não abre naquele dia da semana.
+// ============================================================
+model TurnoDemanda {
+  id        Int @id @default(autoincrement()) @map("id_turno_demanda")
+  turnoId   Int @map("id_turno")
+  diaSemana Int @map("dia_semana") // 0 = domingo ... 6 = sábado
+  quantidade Int @default(1)
+
+  turno Turno @relation(fields: [turnoId], references: [id], onDelete: Cascade)
+
+  @@unique([turnoId, diaSemana])
+  @@map("turno_demanda")
+}
+
+// ============================================================
+// Em que turnos um funcionário PODE ser escalado (qualificação).
+//
+// Separada do turno padrão porque são coisas diferentes: o turno padrão
+// é onde a pessoa trabalha normalmente, a habilitação é onde ela é
+// capaz de trabalhar. O coringa é exatamente quem tem habilitação em
+// vários turnos e nenhum padrão.
+// ============================================================
+model FuncionarioTurno {
+  funcionarioId Int @map("id_funcionario")
+  turnoId       Int @map("id_turno")
+
+  funcionario Funcionario @relation(fields: [funcionarioId], references: [id], onDelete: Cascade)
+  turno       Turno       @relation(fields: [turnoId], references: [id], onDelete: Cascade)
+
+  @@id([funcionarioId, turnoId])
+  @@map("funcionario_turno")
 }
 
 model Escala {
@@ -95,8 +225,8 @@ model Escala {
   postoId  Int      @map("id_posto")
   regraId  Int      @map("id_regra")
 
-  posto     PostoTrabalho @relation(fields: [postoId], references: [id], onDelete: Restrict)
-  regra     Regra         @relation(fields: [regraId], references: [id], onDelete: Restrict)
+  posto     PostoTrabalho @relation(fields: [postoId], references: [id], onDelete: NoAction)
+  regra     Regra         @relation(fields: [regraId], references: [id], onDelete: NoAction)
   alocacoes Alocacao[]
 
   @@map("escala")
@@ -110,10 +240,10 @@ model Alocacao {
   escalaId      Int      @map("id_escala")
   turnoId       Int      @map("id_turno")
 
-  funcionario Funcionario @relation(fields: [funcionarioId], references: [id], onDelete: Restrict)
+  funcionario Funcionario @relation(fields: [funcionarioId], references: [id], onDelete: NoAction)
   // onDelete: Cascade = apagou a escala, as alocações dela vão junto (como no DDL)
   escala      Escala      @relation(fields: [escalaId], references: [id], onDelete: Cascade)
-  turno       Turno       @relation(fields: [turnoId], references: [id], onDelete: Restrict)
+  turno       Turno       @relation(fields: [turnoId], references: [id], onDelete: NoAction)
 
   // uq_aloc_func_dia_turno: um funcionário não pode estar duas vezes
   // no mesmo dia e turno (primeira linha de defesa das regras)
@@ -130,10 +260,43 @@ model Ausencia {
 
   funcionarioId Int @map("id_funcionario")
 
-  // onDelete: Restrict conforme o DDL (fk_ausencia_funcionario).
+  // onDelete: NoAction conforme o DDL (fk_ausencia_funcionario) — ver o
+  // comentário completo no relacionamento Empresa->PostoTrabalho acima
+  // sobre por que NoAction e não Restrict.
   // Antes estava Cascade, o que apagaria o histórico de ausências ao
   // excluir o funcionário — registro trabalhista não deve ser perdido.
-  funcionario Funcionario @relation(fields: [funcionarioId], references: [id], onDelete: Restrict)
+  funcionario Funcionario @relation(fields: [funcionarioId], references: [id], onDelete: NoAction)
 
   @@map("ausencia")
+}
+
+// ============================================================
+// Quem entra no sistema.
+//
+// Tabela separada de `funcionario` de propósito: funcionário é alguém
+// que aparece NA escala, usuário é alguém que MEXE na escala. Hoje as
+// duas listas nem se encostam — quem usa o sistema é o gestor, e ele
+// não é escalado. Juntar as duas obrigaria todo funcionário a ter
+// e-mail e senha para existir na escala, o que não é verdade.
+//
+// `papel` já nasce aqui, com um valor só ('gestor'), mesmo o sistema
+// tendo um único perfil. É a diferença entre acrescentar um perfil
+// amanhã (inserir uma linha com outro papel) e ter que migrar a tabela
+// e revisar toda a documentação de novo.
+// ============================================================
+model Usuario {
+  id    Int    @id @default(autoincrement()) @map("id_usuario")
+  nome  String @db.VarChar(100)
+  email String @unique @db.VarChar(150)
+
+  // Nunca a senha: o hash scrypt no formato "scrypt$<sal>$<hash>"
+  // (ver helpers/seguranca.helpers.ts). 200 caracteres cobrem o
+  // formato atual com folga para uma troca futura de algoritmo.
+  senhaHash String @map("senha_hash") @db.VarChar(200)
+
+  papel String @default("gestor") @db.VarChar(20)
+
+  criadoEm DateTime @default(now()) @map("criado_em")
+
+  @@map("usuario")
 }
