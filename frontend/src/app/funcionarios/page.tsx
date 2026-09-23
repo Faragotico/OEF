@@ -1,4 +1,4 @@
-import { apiGet } from "@/lib/api";
+import { apiGet } from "@/lib/api-server";
 import { FuncionariosList } from "@/components/funcionarios-list";
 
 type Turno = {
@@ -36,12 +36,12 @@ type Funcionario = {
 export default async function FuncionariosPage() {
   const [funcionarios, turnos, postos] = await Promise.all([
     apiGet<Funcionario[]>("/funcionarios"),
-    apiGet<Turno[]>("/turno"),
+    apiGet<Turno[]>("/turnos"),
     apiGet<Posto[]>("/postos"),
   ]);
 
   return (
-    <main className="min-h-screen bg-zinc-50 px-8 py-8 dark:bg-black">
+    <main className="min-h-screen bg-background px-8 py-8">
       <div className="mx-auto max-w-5xl">
         <FuncionariosList funcionarios={funcionarios} turnos={turnos} postos={postos} />
       </div>

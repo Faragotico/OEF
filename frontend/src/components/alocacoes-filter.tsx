@@ -34,7 +34,7 @@ type FiltrosAtuais = {
 };
 
 const inputClass =
-  "border-2 border-black bg-white px-3 py-2 text-sm text-black dark:bg-zinc-900 dark:text-white";
+  "rounded-md border border-border bg-card px-3 py-2 text-sm text-text";
 
 function turnoLabel(t: Turno) {
   return t.descricao
@@ -120,8 +120,8 @@ export function AlocacoesFilter({
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="grid grid-cols-1 gap-3 border-2 border-black bg-white p-5 shadow-[4px_4px_0_0_#000] dark:bg-zinc-900 sm:grid-cols-2 lg:grid-cols-3">
-        <label className="flex flex-col gap-1 text-sm text-black dark:text-zinc-50">
+      <div className="grid grid-cols-1 gap-3 rounded-lg border border-border bg-card p-5 sm:grid-cols-2 lg:grid-cols-3">
+        <label className="flex flex-col gap-1 text-sm text-text">
           Funcionário
           <select
             value={filtrosAtuais.funcionarioId ?? ""}
@@ -138,7 +138,7 @@ export function AlocacoesFilter({
           </select>
         </label>
 
-        <label className="flex flex-col gap-1 text-sm text-black dark:text-zinc-50">
+        <label className="flex flex-col gap-1 text-sm text-text">
           Turno
           <select
             value={filtrosAtuais.turnoId ?? ""}
@@ -154,7 +154,7 @@ export function AlocacoesFilter({
           </select>
         </label>
 
-        <label className="flex flex-col gap-1 text-sm text-black dark:text-zinc-50">
+        <label className="flex flex-col gap-1 text-sm text-text">
           Escala
           <select
             value={filtrosAtuais.escalaId ?? ""}
@@ -170,7 +170,7 @@ export function AlocacoesFilter({
           </select>
         </label>
 
-        <label className="flex flex-col gap-1 text-sm text-black dark:text-zinc-50">
+        <label className="flex flex-col gap-1 text-sm text-text">
           De
           <input
             type="date"
@@ -180,7 +180,7 @@ export function AlocacoesFilter({
           />
         </label>
 
-        <label className="flex flex-col gap-1 text-sm text-black dark:text-zinc-50">
+        <label className="flex flex-col gap-1 text-sm text-text">
           Até
           <input
             type="date"
@@ -190,7 +190,7 @@ export function AlocacoesFilter({
           />
         </label>
 
-        <label className="flex flex-col gap-1 text-sm text-black dark:text-zinc-50">
+        <label className="flex flex-col gap-1 text-sm text-text">
           Substituído?
           <select
             value={filtrosAtuais.substituido ?? ""}
@@ -213,16 +213,16 @@ export function AlocacoesFilter({
           <button
             type="button"
             onClick={limparFiltros}
-            className="border-2 border-black bg-white px-3 py-1.5 text-sm font-bold uppercase tracking-wide text-black shadow-[4px_4px_0_0_#000] transition-all hover:bg-red-50 active:translate-x-[2px] active:translate-y-[2px] active:shadow-none dark:bg-zinc-900 dark:text-white"
+            className="rounded-lg border border-border bg-card px-3 py-1.5 text-sm font-semibold text-text transition-colors hover:bg-text/5"
           >
             Limpar filtros
           </button>
         )}
       </div>
 
-      <div className="overflow-x-auto border-2 border-black bg-white shadow-[4px_4px_0_0_#000] dark:bg-zinc-900">
+      <div className="overflow-x-auto rounded-lg border border-border bg-card">
         <table className="w-full border-collapse text-left text-sm">
-          <thead className="bg-red-100 dark:bg-red-950/40">
+          <thead className="border-b border-border bg-card">
             <tr>
               <th className="px-4 py-3 font-medium">Data</th>
               <th className="px-4 py-3 font-medium">Funcionário</th>
@@ -237,7 +237,7 @@ export function AlocacoesFilter({
               return (
                 <tr
                   key={a.id}
-                  className="border-t-2 border-black transition-colors hover:bg-red-50 dark:hover:bg-red-950/20"
+                  className="border-t border-border transition-colors hover:bg-text/5"
                 >
                   <td className="px-4 py-3">{a.data}</td>
                   <td className="px-4 py-3">
@@ -268,12 +268,12 @@ export function AlocacoesFilter({
       </div>
 
       {totalPaginas > 1 && (
-        <div className="flex items-center justify-center gap-3 text-sm text-black dark:text-zinc-50">
+        <div className="flex items-center justify-center gap-3 text-sm text-text">
           <button
             type="button"
             disabled={page <= 1}
             onClick={() => navegarComPagina(page - 1)}
-            className="border-2 border-black bg-white px-3 py-1.5 text-xs font-bold uppercase tracking-wide shadow-[4px_4px_0_0_#000] transition-all hover:bg-red-50 active:translate-x-[2px] active:translate-y-[2px] active:shadow-none disabled:opacity-40 disabled:hover:bg-white dark:bg-zinc-900 dark:hover:bg-zinc-800"
+            className="rounded-lg border border-border bg-card px-3 py-1.5 text-xs font-semibold transition-colors hover:bg-text/5 disabled:opacity-40 disabled:hover:bg-card"
           >
             ← Anterior
           </button>
@@ -284,7 +284,7 @@ export function AlocacoesFilter({
             type="button"
             disabled={page >= totalPaginas}
             onClick={() => navegarComPagina(page + 1)}
-            className="border-2 border-black bg-white px-3 py-1.5 text-xs font-bold uppercase tracking-wide shadow-[4px_4px_0_0_#000] transition-all hover:bg-red-50 active:translate-x-[2px] active:translate-y-[2px] active:shadow-none disabled:opacity-40 disabled:hover:bg-white dark:bg-zinc-900 dark:hover:bg-zinc-800"
+            className="rounded-lg border border-border bg-card px-3 py-1.5 text-xs font-semibold transition-colors hover:bg-text/5 disabled:opacity-40 disabled:hover:bg-card"
           >
             Próxima →
           </button>

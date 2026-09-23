@@ -1,4 +1,4 @@
-import { apiGet } from "@/lib/api";
+import { apiGet } from "@/lib/api-server";
 import { AusenciasList } from "@/components/ausencias-list";
 
 type Funcionario = { id: number; nome: string; coringa: boolean };
@@ -19,7 +19,7 @@ export default async function AusenciasPage() {
   ]);
 
   return (
-    <main className="min-h-screen bg-zinc-50 px-8 py-8 dark:bg-black">
+    <main className="min-h-screen bg-background px-8 py-8">
       <div className="mx-auto max-w-4xl">
         <AusenciasList ausencias={ausencias} funcionarios={funcionarios} />
       </div>

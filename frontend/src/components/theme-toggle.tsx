@@ -30,7 +30,7 @@ export function ThemeToggle() {
       type="button"
       onClick={toggle}
       aria-label="Alternar tema claro/escuro"
-      className="flex h-9 items-center gap-2 border-2 border-white/40 px-4 text-sm font-bold uppercase tracking-wide text-white transition-colors hover:border-white hover:bg-black/20"
+      className="flex h-9 items-center gap-2 rounded-lg border border-white/40 px-4 text-sm font-medium text-white transition-colors hover:border-white hover:bg-white/10"
     >
       {isDark ? "☀️ Claro" : "🌙 Escuro"}
     </button>

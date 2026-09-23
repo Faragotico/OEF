@@ -24,7 +24,7 @@ const TIPOS_GLOBAIS = [
   {
     chave: "carga_horaria_semanal",
     label: "Carga horária semanal máxima",
-    ajuda: "Limite de horas que um funcionário pode trabalhar de segunda a domingo (CLT: 44h). Já vale pro sistema inteiro mesmo sem cadastrar nada aqui — o padrão é 44h.",
+    ajuda: "Define o limite de horas que um funcionário pode trabalhar de segunda a domingo. Conforme a CLT, o padrão é de 44 horas semanais.",
     descricaoSugerida: "Carga horária semanal máxima de 44 horas",
     valorPadrao: "44",
     unidade: "h",
@@ -32,15 +32,15 @@ const TIPOS_GLOBAIS = [
   {
     chave: "intervalo_interjornada",
     label: "Intervalo mínimo entre jornadas",
-    ajuda: "Descanso mínimo, em horas, entre o fim de um turno e o início do próximo (CLT: 11h). Já vale pro sistema inteiro mesmo sem cadastrar nada aqui — o padrão é 11h.",
+    ajuda: "Define o período mínimo de descanso, em horas, entre o fim de uma jornada e o início da próxima. Conforme a CLT, o padrão é de 11 horas.",
     descricaoSugerida: "Intervalo mínimo entre jornadas de 11 horas",
     valorPadrao: "11",
     unidade: "h",
   },
   {
     chave: "intervalo_intrajornada",
-    label: "Intervalo intrajornada (pausa dentro do turno)",
-    ajuda: "Pausa dentro do turno (ex: 1h de almoço num turno de 8h) que não conta como hora trabalhada — descontada do total de horas antes de checar o limite semanal e em qualquer total de horas exibido. Já vale pro sistema inteiro mesmo sem cadastrar nada aqui — o padrão é 1h.",
+    label: "Intervalo intrajornada (pausa durante o turno)",
+    ajuda: "Define o período de pausa durante a jornada, como 1 hora de almoço em um turno de 8 horas. Esse período não é contabilizado como hora trabalhada e é descontado do total de horas antes da verificação do limite semanal, inclusive nos totais de horas exibidos no sistema.",
     descricaoSugerida: "Intervalo intrajornada de 1 hora",
     valorPadrao: "1",
     unidade: "h",
@@ -126,10 +126,8 @@ export function RegrasList({ regras }: { regras: Regra[] }) {
   return (
     <>
       <div className="mb-6">
-        <h1 className="text-2xl font-semibold text-black dark:text-zinc-50">
-          Regras Trabalhistas
-        </h1>
-        <p className="text-sm text-zinc-500 dark:text-zinc-400">
+        <h1 className="text-2xl font-semibold text-text">Regras Trabalhistas</h1>
+        <p className="text-sm text-text-secondary">
           Regras da CLT aplicadas na geração automática de escalas
         </p>
       </div>
@@ -138,9 +136,11 @@ export function RegrasList({ regras }: { regras: Regra[] }) {
           escolha nenhuma na geração. No máximo UMA regra de cada tipo
           pode existir (o backend bloqueia uma segunda) — assim a
           geração automática nunca precisa "adivinhar" qual das duas
-          usar. */}
+          usar. Cada card traz duas etiquetas fixas ("Aplicação" e
+          "Valor padrão") em vez de repetir a mesma frase explicativa
+          em todo card — só o valor muda de um pro outro. */}
       <section className="mb-8">
-        <h2 className="mb-2 text-lg font-semibold text-black dark:text-zinc-50">
+        <h2 className="mb-2 text-lg font-semibold text-text">
           Configurações gerais do sistema
         </h2>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -150,20 +150,24 @@ export function RegrasList({ regras }: { regras: Regra[] }) {
               cadastra nada. Rodízio não tem piso legal único (5x1,
               6x1, 5x2... todos são válidos) — "padrão" aqui é só QUAL
               dos cadastrados abaixo a geração usa por default,
-              escolha sua, não a lei. */}
-          <div className="flex flex-col gap-2 border-2 border-black bg-white p-4 shadow-[4px_4px_0_0_#000] dark:bg-zinc-900">
-            <span className="font-bold text-black dark:text-zinc-50">Rodízio padrão</span>
-            <p className="text-xs text-zinc-500 dark:text-zinc-400">
-              Padrão usado na geração quando ninguém escolhe outro. Diferente dos
-              cards ao lado, não é piso legal — é escolha sua entre os cadastrados
-              abaixo, em &quot;Padrões de rodízio de escala&quot;.
-            </p>
+              escolha sua, não a lei. Por isso não leva as etiquetas
+              "Aplicação"/"Valor padrão" dos outros três. */}
+          <div className="flex flex-col gap-3 rounded-lg border border-border bg-card p-4">
+            <div>
+              <span className="font-semibold text-text">Rodízio padrão</span>
+              <p className="mt-1 text-xs text-text-secondary">
+                Padrão utilizado na geração das escalas quando nenhum outro é
+                selecionado. Diferente das regras apresentadas ao lado, este não é
+                um limite legal, mas uma escolha entre os padrões cadastrados em
+                &quot;Padrões de rodízio de escala&quot;.
+              </p>
+            </div>
             <div className="mt-1 flex items-center justify-between">
-              <span className="border-2 border-black bg-red-100 px-2 py-1 text-sm font-bold text-red-900 dark:bg-red-950/40 dark:text-red-100">
+              <span className="rounded-md bg-primary/10 px-2 py-1 text-sm font-semibold text-primary">
                 {rodizioPadrao ? rodizioPadrao.valor : "nenhum cadastrado"}
               </span>
-              <span className="text-xs font-bold uppercase text-zinc-500 dark:text-zinc-400">
-                escolha abaixo ↓
+              <span className="text-xs font-semibold uppercase text-text-secondary">
+                Escolher abaixo ↓
               </span>
             </div>
           </div>
@@ -172,16 +176,23 @@ export function RegrasList({ regras }: { regras: Regra[] }) {
             return (
               <div
                 key={t.chave}
-                className="flex flex-col gap-2 border-2 border-black bg-white p-4 shadow-[4px_4px_0_0_#000] dark:bg-zinc-900"
+                className="flex flex-col gap-3 rounded-lg border border-border bg-card p-4"
               >
-                <span className="font-bold text-black dark:text-zinc-50">
-                  {t.label}
-                </span>
-                <p className="text-xs text-zinc-500 dark:text-zinc-400">
-                  {t.ajuda}
-                </p>
+                <div>
+                  <span className="font-semibold text-text">{t.label}</span>
+                  <p className="mt-1 text-xs text-text-secondary">{t.ajuda}</p>
+                </div>
+                <div className="flex flex-wrap gap-1.5">
+                  <span className="rounded-full bg-text/5 px-2 py-0.5 text-[11px] font-medium text-text-secondary">
+                    Aplicação: Todo o sistema
+                  </span>
+                  <span className="rounded-full bg-text/5 px-2 py-0.5 text-[11px] font-medium text-text-secondary">
+                    Valor padrão: {t.valorPadrao}
+                    {t.unidade}
+                  </span>
+                </div>
                 <div className="mt-1 flex items-center justify-between">
-                  <span className="border-2 border-black bg-red-100 px-2 py-1 text-sm font-bold text-red-900 dark:bg-red-950/40 dark:text-red-100">
+                  <span className="rounded-md bg-primary/10 px-2 py-1 text-sm font-semibold text-primary">
                     {cadastrada ? cadastrada.valor : t.valorPadrao}
                     {t.unidade}
                     {!cadastrada && " (padrão)"}
@@ -190,7 +201,7 @@ export function RegrasList({ regras }: { regras: Regra[] }) {
                     <button
                       type="button"
                       onClick={() => setModal({ modo: "editar", regra: cadastrada })}
-                      className="text-xs font-bold uppercase text-black hover:underline dark:text-white"
+                      className="text-xs font-semibold uppercase text-primary hover:underline"
                     >
                       Editar
                     </button>
@@ -198,9 +209,9 @@ export function RegrasList({ regras }: { regras: Regra[] }) {
                     <button
                       type="button"
                       onClick={() => setModal({ modo: "novo-global", tipo: t.chave })}
-                      className="text-xs font-bold uppercase text-black hover:underline dark:text-white"
+                      className="text-xs font-semibold uppercase text-primary hover:underline"
                     >
-                      + Definir valor customizado
+                      + Definir valor personalizado
                     </button>
                   )}
                 </div>
@@ -208,11 +219,11 @@ export function RegrasList({ regras }: { regras: Regra[] }) {
             );
           })}
         </div>
-        <p className="mt-3 border-2 border-black bg-zinc-100 px-3 py-2 text-xs text-zinc-600 dark:bg-zinc-900 dark:text-zinc-400">
-          O Descanso Semanal Remunerado (máximo de 6 dias seguidos sem
-          folga) não aparece aqui porque é piso legal fixo — não dá pra
-          configurar um valor diferente, então não tem regra pra
-          cadastrar.
+        <p className="mt-3 rounded-lg border border-border bg-text/5 px-3 py-2 text-xs text-text-secondary">
+          O Descanso Semanal Remunerado não aparece entre as configurações porque
+          possui um limite legal fixo. A legislação estabelece o direito ao
+          descanso após, no máximo, 6 dias consecutivos de trabalho, não sendo
+          possível cadastrar um valor diferente para essa regra.
         </p>
       </section>
 
@@ -220,21 +231,21 @@ export function RegrasList({ regras }: { regras: Regra[] }) {
           e o gestor escolhe qual usar em cada "Gerar escala". */}
       <section>
         <div className="mb-2 flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-black dark:text-zinc-50">
+          <h2 className="text-lg font-semibold text-text">
             Padrões de rodízio de escala
           </h2>
           <button
             type="button"
             onClick={() => setModal({ modo: "novo-padrao" })}
-            className="border-2 border-black bg-red-600 px-4 py-2.5 text-sm font-bold uppercase tracking-wide text-white shadow-[4px_4px_0_0_#000] transition-all hover:bg-red-700 active:translate-x-[2px] active:translate-y-[2px] active:shadow-none"
+            className="rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-primary-hover"
           >
             + Novo padrão
           </button>
         </div>
 
-        <div className="overflow-x-auto border-2 border-black bg-white shadow-[4px_4px_0_0_#000] dark:bg-zinc-900">
+        <div className="overflow-x-auto rounded-lg border border-border bg-card">
           <table className="w-full border-collapse text-left text-sm">
-            <thead className="bg-red-100 dark:bg-red-950/40">
+            <thead className="border-b border-border bg-card">
               <tr>
                 <th className="px-4 py-3 font-medium">Descrição</th>
                 <th className="px-4 py-3 font-medium">Ciclo</th>
@@ -245,13 +256,13 @@ export function RegrasList({ regras }: { regras: Regra[] }) {
               {padroesEscala.map((r) => (
                 <tr
                   key={r.id}
-                  className="border-t-2 border-black transition-colors hover:bg-red-50 dark:hover:bg-red-950/20"
+                  className="border-t border-border transition-colors hover:bg-text/5"
                 >
                   <td className="px-4 py-3">{r.descricao}</td>
                   <td className="px-4 py-3">
                     {r.valor}
                     {r.padrao && (
-                      <span className="ml-2 border-2 border-black bg-red-600 px-1.5 py-0.5 text-[10px] font-bold uppercase text-white">
+                      <span className="ml-2 rounded-full bg-primary px-1.5 py-0.5 text-[10px] font-semibold uppercase text-white">
                         Padrão
                       </span>
                     )}
@@ -263,7 +274,7 @@ export function RegrasList({ regras }: { regras: Regra[] }) {
                           type="button"
                           disabled={marcando === r.id}
                           onClick={() => marcarComoPadrao(r.id)}
-                          className="text-xs font-bold uppercase text-black hover:underline disabled:opacity-50 dark:text-white"
+                          className="text-xs font-semibold uppercase text-primary hover:underline disabled:opacity-50"
                         >
                           {marcando === r.id ? "Marcando..." : "Marcar como padrão"}
                         </button>
@@ -271,7 +282,7 @@ export function RegrasList({ regras }: { regras: Regra[] }) {
                       <button
                         type="button"
                         onClick={() => setModal({ modo: "editar", regra: r })}
-                        className="text-xs font-bold uppercase text-black hover:underline dark:text-white"
+                        className="text-xs font-semibold uppercase text-primary hover:underline"
                       >
                         Editar
                       </button>
@@ -287,7 +298,7 @@ export function RegrasList({ regras }: { regras: Regra[] }) {
                 <tr>
                   <td
                     colSpan={3}
-                    className="px-4 py-6 text-center text-zinc-500 dark:text-zinc-400"
+                    className="px-4 py-6 text-center text-text-secondary"
                   >
                     Nenhum padrão de rodízio cadastrado.
                   </td>
@@ -300,17 +311,15 @@ export function RegrasList({ regras }: { regras: Regra[] }) {
 
       {antigas.length > 0 && (
         <section className="mt-8">
-          <h2 className="mb-2 text-lg font-semibold text-black dark:text-zinc-50">
-            Regras antigas
-          </h2>
-          <p className="mb-2 text-xs text-zinc-500 dark:text-zinc-400">
+          <h2 className="mb-2 text-lg font-semibold text-text">Regras antigas</h2>
+          <p className="mb-2 text-xs text-text-secondary">
             Tipos que existiam antes deste rework e nunca tiveram
             efeito nenhum na geração ou validação de escalas. Não é
             possível editá-las — só excluir.
           </p>
-          <div className="overflow-x-auto border-2 border-black bg-white shadow-[4px_4px_0_0_#000] dark:bg-zinc-900">
+          <div className="overflow-x-auto rounded-lg border border-border bg-card">
             <table className="w-full border-collapse text-left text-sm">
-              <thead className="bg-red-100 dark:bg-red-950/40">
+              <thead className="border-b border-border bg-card">
                 <tr>
                   <th className="px-4 py-3 font-medium">Descrição</th>
                   <th className="px-4 py-3 font-medium">Tipo</th>
@@ -322,10 +331,10 @@ export function RegrasList({ regras }: { regras: Regra[] }) {
                 {antigas.map((r) => (
                   <tr
                     key={r.id}
-                    className="border-t-2 border-black transition-colors hover:bg-red-50 dark:hover:bg-red-950/20"
+                    className="border-t border-border transition-colors hover:bg-text/5"
                   >
                     <td className="px-4 py-3">{r.descricao}</td>
-                    <td className="px-4 py-3 italic text-zinc-500 dark:text-zinc-400">
+                    <td className="px-4 py-3 italic text-text-secondary">
                       {infoDoTipoAntigo(r.tipo)}
                     </td>
                     <td className="px-4 py-3">{r.valor}</td>

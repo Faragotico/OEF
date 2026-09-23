@@ -137,22 +137,17 @@ export function desfazer(estado: Estado, c: Candidato): void {
 // ------------------------------------------------------------
 
 /**
- * Qualificação: a pessoa está habilitada nesse turno?
+ * Qualificação: a pessoa cabe nos turnos em que está habilitada. O
+ * turno padrão do titular já entra nessa lista pelo cadastro, então
+ * quem não tem habilitação extra continua preso ao horário de casa.
  *
- * Titular só cobre o próprio horário, salvo se o gestor liberar. É o
- * que os quadros reais mostram — cada pessoa no mesmo horário o mês
- * inteiro — e é a diferença entre uma escala que a equipe reconhece e
- * um quebra-cabeça ótimo que ninguém quer cumprir.
+ * A habilitação extra é o que representa domingo com horário próprio
+ * (ex: Matriz): cadastra-se o turno de domingo à parte, com demanda só
+ * no domingo, e habilita-se o titular nele.
  *
- * Quando o gestor LIBERA, a liberação vale para os titulares e só para
- * eles: um titular passa a caber em qualquer turno da grade, e o
- * coringa continua preso à qualificação que o cadastro deu a ele.
- * Tem que ser assim porque as duas listas significam coisas
- * diferentes — a do titular é "onde ele normalmente trabalha", a do
- * coringa é "o que ele sabe cobrir". Exigir habilitação explícita do
- * titular também deixava a opção sem efeito nenhum na prática:
- * ninguém cadastra habilitação extra para quem já tem horário fixo, e
- * a caixa ficava marcada sem mudar uma vaga sequer.
+ * `permitirForaDoPreferido` é a liberação geral (qualquer turno, sem
+ * precisar de habilitação). Nunca afeta o coringa — a lista dele já É
+ * a qualificação.
  */
 function habilitacao(c: Candidato, limites: Limites): Veredito {
   const ehTitular = c.pessoa.turnoPreferido !== null;
@@ -160,9 +155,6 @@ function habilitacao(c: Candidato, limites: Limites): Veredito {
   if (ehTitular && limites.permitirForaDoPreferido) return OK;
 
   if (!c.pessoa.turnosHabilitados.includes(c.turno.id)) {
-    return falha('nao-habilitado');
-  }
-  if (ehTitular && c.pessoa.turnoPreferido !== c.turno.id) {
     return falha('nao-habilitado');
   }
   return OK;

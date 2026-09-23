@@ -39,13 +39,13 @@ export function ValidarEscalaButton({ escalaId }: { escalaId: number }) {
         type="button"
         onClick={validar}
         disabled={loading}
-        className="self-start border-2 border-black bg-white px-4 py-2 text-sm font-bold uppercase tracking-wide text-black shadow-[4px_4px_0_0_#000] transition-all hover:bg-red-50 active:translate-x-[2px] active:translate-y-[2px] active:shadow-none disabled:opacity-50 dark:bg-zinc-900 dark:text-white"
+        className="self-start rounded-lg border border-border bg-card px-4 py-2 text-sm font-semibold text-text transition-colors hover:bg-text/5 disabled:opacity-50"
       >
         {loading ? "Validando..." : "Validar escala"}
       </button>
 
       {error && (
-        <p className="border-2 border-black bg-red-600 px-3 py-2 text-sm font-medium text-white">
+        <p className="rounded-lg bg-danger px-3 py-2 text-sm font-medium text-white">
           {error}
         </p>
       )}
@@ -54,8 +54,8 @@ export function ValidarEscalaButton({ escalaId }: { escalaId: number }) {
         <div
           className={
             resultado.valida
-              ? "border-2 border-black bg-red-100 px-4 py-3 text-sm font-medium text-red-900 dark:bg-red-950/40 dark:text-red-100"
-              : "border-2 border-black bg-red-600 px-4 py-3 text-sm font-medium text-white"
+              ? "rounded-lg border border-success/20 bg-success/10 px-4 py-3 text-sm font-medium text-success"
+              : "rounded-lg bg-danger px-4 py-3 text-sm font-medium text-white"
           }
         >
           {resultado.valida ? (

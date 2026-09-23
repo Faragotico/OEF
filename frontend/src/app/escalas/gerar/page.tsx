@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { apiGet } from "@/lib/api";
+import { apiGet } from "@/lib/api-server";
 import { GerarEscalaForm } from "@/components/gerar-escala-form";
 
 type Posto = { id: number; nome: string; localizacao: string };
@@ -29,7 +29,7 @@ export default async function GerarEscalaPage() {
     apiGet<Posto[]>("/postos"),
     apiGet<Regra[]>("/regras"),
     apiGet<Funcionario[]>("/funcionarios"),
-    apiGet<Turno[]>("/turno"),
+    apiGet<Turno[]>("/turnos"),
   ]);
 
   const regrasEscala = regras.filter((r) => r.tipo === "escala");
@@ -42,15 +42,15 @@ export default async function GerarEscalaPage() {
     : 1;
 
   return (
-    <main className="min-h-screen bg-zinc-50 px-8 py-8 dark:bg-black">
+    <main className="min-h-screen bg-background px-8 py-8">
       <div className="mx-auto max-w-4xl">
         <Link
           href="/escalas"
-          className="mb-4 inline-block text-sm font-bold text-red-700 hover:underline dark:text-red-400"
+          className="mb-4 inline-block text-sm font-semibold text-primary hover:underline"
         >
           ← Voltar para escalas
         </Link>
-        <h1 className="mb-2 text-2xl font-semibold text-black dark:text-zinc-50">
+        <h1 className="mb-2 text-2xl font-semibold text-text">
           Gerar Escala Automaticamente
         </h1>
         {/* A explicação mudou junto com o motor. Antes ela dizia "cada

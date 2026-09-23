@@ -49,18 +49,18 @@ export function Modal({
       }}
     >
       <div
-        className="animate-fade-in-up max-h-[90vh] w-full max-w-xl overflow-y-auto border-2 border-black bg-white p-6 shadow-[8px_8px_0_0_#000] dark:bg-zinc-900"
+        className="animate-fade-in-up max-h-[90vh] w-full max-w-xl overflow-y-auto rounded-lg border border-border bg-card p-6"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="mb-4 flex items-center justify-between gap-4">
-          <h2 className="text-xl font-semibold text-black dark:text-zinc-50">
+          <h2 className="text-xl font-semibold text-text">
             {title}
           </h2>
           <button
             type="button"
             onClick={onClose}
             aria-label="Fechar"
-            className="flex h-8 w-8 flex-none items-center justify-center border-2 border-black bg-white text-lg font-bold leading-none text-black transition-all hover:bg-red-600 hover:text-white active:translate-x-[1px] active:translate-y-[1px] dark:bg-zinc-900 dark:text-white"
+            className="flex h-8 w-8 flex-none items-center justify-center rounded-md border border-border bg-card text-lg font-bold leading-none text-text transition-colors hover:bg-danger hover:text-white"
           >
             ×
           </button>

@@ -26,7 +26,7 @@ export function EmpresasList({ empresas }: { empresas: Empresa[] }) {
     <>
       <div className="mb-6 flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-semibold text-black dark:text-zinc-50">
+          <h1 className="text-2xl font-semibold text-text">
             Empresas
           </h1>
           <p className="text-sm text-zinc-500 dark:text-zinc-400">
@@ -36,15 +36,15 @@ export function EmpresasList({ empresas }: { empresas: Empresa[] }) {
         <button
           type="button"
           onClick={() => setModal({ modo: "novo" })}
-          className="border-2 border-black bg-red-600 px-4 py-2.5 text-sm font-bold uppercase tracking-wide text-white shadow-[4px_4px_0_0_#000] transition-all hover:bg-red-700 active:translate-x-[2px] active:translate-y-[2px] active:shadow-none"
+          className="rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-primary-hover"
         >
           + Nova Empresa
         </button>
       </div>
 
-      <div className="overflow-x-auto border-2 border-black bg-white shadow-[4px_4px_0_0_#000] dark:bg-zinc-900">
+      <div className="overflow-x-auto rounded-lg border border-border bg-card">
         <table className="w-full border-collapse text-left text-sm">
-          <thead className="bg-red-100 dark:bg-red-950/40">
+          <thead className="border-b border-border bg-card">
             <tr>
               <th className="px-4 py-3 font-medium">Nome</th>
               <th className="px-4 py-3 font-medium">CNPJ</th>
@@ -56,7 +56,7 @@ export function EmpresasList({ empresas }: { empresas: Empresa[] }) {
             {empresas.map((e) => (
               <tr
                 key={e.id}
-                className="border-t-2 border-black transition-colors hover:bg-red-50 dark:hover:bg-red-950/20"
+                className="border-t border-border transition-colors hover:bg-text/5"
               >
                 <td className="px-4 py-3">{e.nome}</td>
                 <td className="px-4 py-3">{e.cnpj}</td>
@@ -66,7 +66,7 @@ export function EmpresasList({ empresas }: { empresas: Empresa[] }) {
                     <button
                       type="button"
                       onClick={() => setModal({ modo: "editar", empresa: e })}
-                      className="text-xs font-bold uppercase text-black hover:underline dark:text-white"
+                      className="text-xs font-semibold uppercase text-primary hover:underline"
                     >
                       Editar
                     </button>

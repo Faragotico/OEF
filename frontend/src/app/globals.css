@@ -2,9 +2,62 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/* Paleta OEF — verde-petróleo + neutros, estilo limpo (não mais
+   neobrutalista). Definida como variáveis CSS e espelhada no @theme
+   abaixo, o que gera automaticamente as classes bg-primary,
+   text-primary, border-border etc. em todo o Tailwind. */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #f8fafc;
+  --foreground: #1e293b;
+
+  --color-primary: #0f766e; /* verde-petróleo principal — menu lateral, botões primários */
+  --color-primary-hover: #134e4a; /* verde-petróleo escuro — hover do botão primário */
+  --color-accent: #0891b2; /* teal/ciano de destaque — foco, seleção, chips ativos */
+
+  --color-card: #ffffff;
+  --color-text: #1e293b;
+  --color-text-secondary: #64748b;
+  --color-border: #e2e8f0;
+
+  --color-success: #16a34a;
+  --color-warning: #d97706;
+  --color-danger: #dc2626;
+  --color-info: #2563eb;
+
+  /* Tons claros pra fundo de célula na grade da escala — cada
+     situação tem sua própria cor em vez de tudo em vermelho. */
+  --color-folga-bg: #ccfbf1;
+  --color-folga-text: #134e4a;
+  --color-cobertura-bg: #fef3c7; /* vaga sem cobertura — usa o tom de atenção */
+  --color-cobertura-text: #92400e;
+  --color-substituicao-bg: #dbeafe; /* cobrindo turno de outro — usa o tom de informação */
+  --color-substituicao-text: #1e40af;
+}
+
+.dark {
+  --background: #0f172a;
+  --foreground: #f1f5f9;
+
+  --color-primary: #14b8a6; /* mais claro que no light mode pra manter contraste no fundo escuro */
+  --color-primary-hover: #2dd4bf; /* no escuro, hover clareia em vez de escurecer */
+  --color-accent: #22d3ee;
+
+  --color-card: #1e293b;
+  --color-text: #f1f5f9;
+  --color-text-secondary: #94a3b8;
+  --color-border: #334155;
+
+  --color-success: #22c55e;
+  --color-warning: #f59e0b;
+  --color-danger: #ef4444;
+  --color-info: #3b82f6;
+
+  --color-folga-bg: #134e4a;
+  --color-folga-text: #99f6e4;
+  --color-cobertura-bg: #78350f;
+  --color-cobertura-text: #fde68a;
+  --color-substituicao-bg: #1e3a5f;
+  --color-substituicao-text: #bfdbfe;
 }
 
 @theme inline {
@@ -12,49 +65,39 @@
   --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
-}
 
-.dark {
-  --background: #0a0a0a;
-  --foreground: #ededed;
+  --color-primary: var(--color-primary);
+  --color-primary-hover: var(--color-primary-hover);
+  --color-accent: var(--color-accent);
+  --color-card: var(--color-card);
+  --color-text: var(--color-text);
+  --color-text-secondary: var(--color-text-secondary);
+  --color-border: var(--color-border);
+  --color-success: var(--color-success);
+  --color-warning: var(--color-warning);
+  --color-danger: var(--color-danger);
+  --color-info: var(--color-info);
+  --color-folga-bg: var(--color-folga-bg);
+  --color-folga-text: var(--color-folga-text);
+  --color-cobertura-bg: var(--color-cobertura-bg);
+  --color-cobertura-text: var(--color-cobertura-text);
+  --color-substituicao-bg: var(--color-substituicao-bg);
+  --color-substituicao-text: var(--color-substituicao-text);
 }
 
 body {
   background-color: var(--background);
   color: var(--foreground);
-  /* A Geist Sans já era carregada em layout.tsx (--font-geist-sans),
-     mas essa regra sobrescrevia tudo com Arial puro — a fonte nunca
-     aparecia de fato. Usar a variável é o que dá a esse texto o
-     acabamento "desenhado", em vez de fonte de sistema genérica. */
   font-family: var(--font-sans), Arial, Helvetica, sans-serif;
-  /* Textura sutil de pontos — dá um acabamento "desenhado à mão" no
-     fundo sem competir com os cards/tabelas por cima. Fixo (não rola
-     junto com o conteúdo) pra não ficar "nervoso" em telas longas. */
-  background-image: radial-gradient(
-    circle,
-    color-mix(in srgb, #dc2626 22%, transparent) 1.5px,
-    transparent 1.5px
-  );
-  background-size: 24px 24px;
-  background-attachment: fixed;
 }
 
-.dark body {
-  background-image: radial-gradient(
-    circle,
-    color-mix(in srgb, #dc2626 14%, transparent) 1.5px,
-    transparent 1.5px
-  );
-}
-
-/* Cor de destaque nativa dos inputs (checkbox/radio/date/time) — o
-   azul padrão do navegador quebrava a identidade vermelha bem no
-   detalhe que o usuário mais olha ao preencher um formulário. */
+/* Cor de destaque nativa dos inputs (checkbox/radio/date/time) —
+   segue a marca (verde-petróleo) em vez do azul padrão do navegador. */
 input[type="checkbox"],
 input[type="radio"],
 input[type="date"],
 input[type="time"] {
-  accent-color: #dc2626;
+  accent-color: var(--color-primary);
 }
 
 /* Entrada suave pra cards e seções — aplicar via classe
@@ -74,20 +117,19 @@ input[type="time"] {
   animation: fade-in-up 0.4s cubic-bezier(0.2, 0.7, 0.3, 1) both;
 }
 
-/* "Levantar" no hover, quadrado — complementa o efeito de "afundar"
-   que os botões já tinham no active. O card parece flutuar um pouco
-   antes de ser pressionado, reforçando a textura tátil do estilo. */
+/* Elevação suave no hover — visual limpo (sombra leve), sem o efeito
+   de "sombra dura deslocada" do estilo anterior. */
 .oef-lift {
-  transition: transform 150ms ease, box-shadow 150ms ease;
+  transition:
+    transform 150ms ease,
+    box-shadow 150ms ease;
 }
 .oef-lift:hover {
-  transform: translate(-2px, -2px);
-  box-shadow: 7px 7px 0 0 #000;
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px -4px rgb(15 23 42 / 0.12);
 }
 
-/* Spinner quadrado e "travado" em 4 posições (em vez de girar suave)
-   — combina com a identidade neobrutalista quadrada/dura do resto do
-   sistema em vez de um spinner circular genérico. */
+/* Spinner circular padrão. */
 @keyframes spin-square {
   to {
     transform: rotate(360deg);
@@ -98,37 +140,36 @@ input[type="time"] {
   width: 11px;
   height: 11px;
   flex: none;
-  background: currentColor;
-  animation: spin-square 0.8s infinite steps(4);
+  border-radius: 9999px;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  animation: spin-square 0.7s linear infinite;
 }
 
-/* Seleção de texto e foco de teclado na cor da marca — reforça a
-   identidade vermelha/quadrada até nesses detalhes, em vez de deixar
-   o azul padrão do navegador. */
+/* Seleção de texto e foco de teclado na cor de destaque da marca. */
 ::selection {
-  background: #dc2626;
+  background: var(--color-accent);
   color: #ffffff;
 }
 
 :focus-visible {
-  outline: 3px solid #dc2626;
+  outline: 2px solid var(--color-accent);
   outline-offset: 2px;
 }
 
-/* Scrollbar fina em vermelho/preto pros contêineres com overflow-x
-   (tabelas e grades de escala) — no Firefox e no Chrome/Edge/Safari. */
+/* Scrollbar fina e discreta (neutra, não compete com o conteúdo). */
 * {
-  scrollbar-color: #dc2626 transparent;
+  scrollbar-color: var(--color-text-secondary) transparent;
   scrollbar-width: thin;
 }
 *::-webkit-scrollbar {
-  height: 10px;
-  width: 10px;
+  height: 8px;
+  width: 8px;
 }
 *::-webkit-scrollbar-track {
   background: transparent;
 }
 *::-webkit-scrollbar-thumb {
-  background-color: #dc2626;
-  border: 2px solid transparent;
+  background-color: var(--color-border);
+  border-radius: 9999px;
 }

@@ -138,6 +138,23 @@ export class GeracaoEscalaService {
           'cadastre os turnos na tela Turnos antes de gerar.',
       );
     }
+    // Id pedido que não existe no banco não pode passar despercebido.
+    // O `where: { id: { in: [...] } }` simplesmente não traz a linha que
+    // não existe, então sem esta checagem o gestor seleciona sete
+    // pessoas, uma foi excluída nesse meio tempo, e a escala sai com
+    // seis sem ninguém avisar — o tipo de silêncio que só aparece
+    // quando a escala já está impressa no posto.
+    if (dto.funcionarioIds?.length) {
+      const encontrados = new Set(candidatos.map((f) => f.id));
+      const inexistentes = dto.funcionarioIds.filter((id) => !encontrados.has(id));
+      if (inexistentes.length > 0) {
+        throw new NotFoundException(
+          `Estes funcionários não existem: ${inexistentes.join(', ')}. ` +
+            'Atualize a seleção antes de gerar a escala.',
+        );
+      }
+    }
+
     if (candidatos.length === 0) {
       throw new BadRequestException(
         dto.funcionarioIds?.length

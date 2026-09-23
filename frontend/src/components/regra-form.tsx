@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { apiPatch, apiPost } from "@/lib/api";
 
 const inputClass =
-  "border-2 border-black bg-white px-3 py-2 text-sm text-black dark:bg-zinc-900 dark:text-white";
+  "rounded-md border border-border bg-card px-3 py-2 text-sm text-text";
 
 // Os únicos quatro tipos que o motor de geração/validação de escala
 // (RegrasTrabalhistasService, GeracaoEscalaService) realmente lê —
@@ -114,7 +114,7 @@ export function RegraForm({
 
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-      <label className="flex flex-col gap-1 text-sm text-black dark:text-zinc-50">
+      <label className="flex flex-col gap-1 text-sm text-text">
         Descrição
         <input
           required
@@ -127,7 +127,7 @@ export function RegraForm({
         />
       </label>
 
-      <label className="flex flex-col gap-1 text-sm text-black dark:text-zinc-50">
+      <label className="flex flex-col gap-1 text-sm text-text">
         Tipo de regra
         <select
           required
@@ -142,13 +142,13 @@ export function RegraForm({
           ))}
         </select>
       </label>
-      <p className="-mt-2 border-2 border-black bg-red-100 px-3 py-2 text-xs text-red-900 dark:bg-red-950/40 dark:text-red-100">
+      <p className="-mt-2 rounded-lg border border-border bg-text/5 px-3 py-2 text-xs text-text-secondary">
         {tipoAtual.ajuda}
       </p>
 
       {form.tipo === "escala" ? (
         <div className="grid grid-cols-2 gap-4">
-          <label className="flex flex-col gap-1 text-sm text-black dark:text-zinc-50">
+          <label className="flex flex-col gap-1 text-sm text-text">
             Dias trabalhados
             <input
               type="number"
@@ -160,7 +160,7 @@ export function RegraForm({
               className={inputClass}
             />
           </label>
-          <label className="flex flex-col gap-1 text-sm text-black dark:text-zinc-50">
+          <label className="flex flex-col gap-1 text-sm text-text">
             Dias de folga
             <input
               type="number"
@@ -174,7 +174,7 @@ export function RegraForm({
           </label>
         </div>
       ) : (
-        <label className="flex flex-col gap-1 text-sm text-black dark:text-zinc-50">
+        <label className="flex flex-col gap-1 text-sm text-text">
           Valor (horas)
           <input
             type="number"
@@ -189,7 +189,7 @@ export function RegraForm({
       )}
 
       {error && (
-        <p className="border-2 border-black bg-red-600 px-3 py-2 text-sm font-medium text-white">
+        <p className="rounded-lg bg-danger px-3 py-2 text-sm font-medium text-white">
           {error}
         </p>
       )}
@@ -197,7 +197,7 @@ export function RegraForm({
       <button
         type="submit"
         disabled={loading}
-        className="mt-2 border-2 border-black bg-red-600 px-5 py-2.5 text-sm font-bold uppercase tracking-wide text-white shadow-[4px_4px_0_0_#000] transition-all hover:bg-red-700 active:translate-x-[2px] active:translate-y-[2px] active:shadow-none disabled:opacity-50"
+        className="mt-2 rounded-lg bg-primary px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-primary-hover disabled:opacity-50"
       >
         {loading ? "Salvando..." : "Salvar"}
       </button>

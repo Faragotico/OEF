@@ -269,3 +269,34 @@ model Ausencia {
 
   @@map("ausencia")
 }
+
+// ============================================================
+// Quem entra no sistema.
+//
+// Tabela separada de `funcionario` de propósito: funcionário é alguém
+// que aparece NA escala, usuário é alguém que MEXE na escala. Hoje as
+// duas listas nem se encostam — quem usa o sistema é o gestor, e ele
+// não é escalado. Juntar as duas obrigaria todo funcionário a ter
+// e-mail e senha para existir na escala, o que não é verdade.
+//
+// `papel` já nasce aqui, com um valor só ('gestor'), mesmo o sistema
+// tendo um único perfil. É a diferença entre acrescentar um perfil
+// amanhã (inserir uma linha com outro papel) e ter que migrar a tabela
+// e revisar toda a documentação de novo.
+// ============================================================
+model Usuario {
+  id    Int    @id @default(autoincrement()) @map("id_usuario")
+  nome  String @db.VarChar(100)
+  email String @unique @db.VarChar(150)
+
+  // Nunca a senha: o hash scrypt no formato "scrypt$<sal>$<hash>"
+  // (ver helpers/seguranca.helpers.ts). 200 caracteres cobrem o
+  // formato atual com folga para uma troca futura de algoritmo.
+  senhaHash String @map("senha_hash") @db.VarChar(200)
+
+  papel String @default("gestor") @db.VarChar(20)
+
+  criadoEm DateTime @default(now()) @map("criado_em")
+
+  @@map("usuario")
+}

@@ -1,4 +1,4 @@
-import { apiGet } from "@/lib/api";
+import { apiGet } from "@/lib/api-server";
 import { TurnosList } from "@/components/turnos-list";
 
 type Turno = {
@@ -13,14 +13,13 @@ type Turno = {
 type Posto = { id: number; nome: string; localizacao: string };
 
 export default async function TurnosPage() {
-  // Rota no backend é singular: /turno (as demais são plural).
   const [turnos, postos] = await Promise.all([
-    apiGet<Turno[]>("/turno"),
+    apiGet<Turno[]>("/turnos"),
     apiGet<Posto[]>("/postos"),
   ]);
 
   return (
-    <main className="min-h-screen bg-zinc-50 px-8 py-8 dark:bg-black">
+    <main className="min-h-screen bg-background px-8 py-8">
       <div className="mx-auto max-w-5xl">
         <TurnosList turnos={turnos} postos={postos} />
       </div>

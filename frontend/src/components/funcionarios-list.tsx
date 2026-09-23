@@ -72,7 +72,7 @@ export function FuncionariosList({
     <>
       <div className="mb-6 flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-semibold text-black dark:text-zinc-50">
+          <h1 className="text-2xl font-semibold text-text">
             Funcionários
           </h1>
           <p className="text-sm text-zinc-500 dark:text-zinc-400">
@@ -82,15 +82,15 @@ export function FuncionariosList({
         <button
           type="button"
           onClick={() => setModal({ modo: "novo" })}
-          className="border-2 border-black bg-red-600 px-4 py-2.5 text-sm font-bold uppercase tracking-wide text-white shadow-[4px_4px_0_0_#000] transition-all hover:bg-red-700 active:translate-x-[2px] active:translate-y-[2px] active:shadow-none"
+          className="rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-primary-hover"
         >
           + Novo Funcionário
         </button>
       </div>
 
-      <div className="overflow-x-auto border-2 border-black bg-white shadow-[4px_4px_0_0_#000] dark:bg-zinc-900">
+      <div className="overflow-x-auto rounded-lg border border-border bg-card">
         <table className="w-full border-collapse text-left text-sm">
-          <thead className="bg-red-100 dark:bg-red-950/40">
+          <thead className="border-b border-border bg-card">
             <tr>
               <th className="px-4 py-3 font-medium">Nome</th>
               <th className="px-4 py-3 font-medium">CPF</th>
@@ -107,7 +107,7 @@ export function FuncionariosList({
             {funcionarios.map((f) => (
               <tr
                 key={f.id}
-                className="border-t-2 border-black transition-colors hover:bg-red-50 dark:hover:bg-red-950/20"
+                className="border-t border-border transition-colors hover:bg-text/5"
               >
                 <td className="px-4 py-3">{f.nome}</td>
                 <td className="px-4 py-3">{f.cpf}</td>
@@ -123,13 +123,13 @@ export function FuncionariosList({
                 </td>
                 <td className="px-4 py-3">
                   {f.coringa ? (
-                    <span className="border-2 border-black bg-black px-2 py-1 text-xs font-bold uppercase text-white">
+                    <span className="rounded-full bg-primary px-2 py-1 text-xs font-semibold uppercase text-white">
                       Coringa · {f.turnosHabilitadosIds.length} turno(s)
                     </span>
                   ) : f.cadastroIncompleto ? (
                     <span
                       title="Sem turno de casa e sem habilitação: não entra na geração automática."
-                      className="border-2 border-black bg-amber-300 px-2 py-1 text-xs font-bold uppercase text-black"
+                      className="rounded-full border border-warning/20 bg-warning/10 px-2 py-1 text-xs font-semibold uppercase text-warning"
                     >
                       Cadastro incompleto
                     </span>
@@ -146,8 +146,8 @@ export function FuncionariosList({
                   <span
                     className={
                       f.status
-                        ? "border-2 border-black bg-red-600 px-2 py-1 text-xs font-bold uppercase text-white"
-                        : "border-2 border-black bg-white px-2 py-1 text-xs font-bold uppercase text-black dark:bg-zinc-900 dark:text-white"
+                        ? "rounded-full bg-success px-2 py-1 text-xs font-semibold uppercase text-white"
+                        : "rounded-full border border-border bg-card px-2 py-1 text-xs font-semibold uppercase text-text-secondary"
                     }
                   >
                     {f.status ? "Ativo" : "Inativo"}
@@ -158,7 +158,7 @@ export function FuncionariosList({
                     <button
                       type="button"
                       onClick={() => setModal({ modo: "editar", funcionario: f })}
-                      className="text-xs font-bold uppercase text-black hover:underline dark:text-white"
+                      className="text-xs font-semibold uppercase text-primary hover:underline"
                     >
                       Editar
                     </button>

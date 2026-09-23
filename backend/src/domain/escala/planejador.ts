@@ -192,6 +192,38 @@ export function planejar(problema: ProblemaEscala): PlanoEscala {
   const pendentes = new Set(vagas.map(chaveVaga));
   const vagaPorChave = new Map(vagas.map((v) => [chaveVaga(v), v]));
 
+  // Memo das avaliações, com invalidação por vizinhança de dias.
+  //
+  // Sem isso o laço é O(vagas² × pessoas): a cada vaga preenchida,
+  // reavalia TODAS as que sobraram — mas alocar alguém no dia D só
+  // muda quem cabe perto de D (RN05 é D±1; RN06/RN07/RN04 alcançam no
+  // máximo 6 dias pra cada lado). 7 dias de raio cobrem todas com
+  // folga: guarda a avaliação de cada vaga, e depois de cada
+  // atribuição descarta só as que caem nessa janela.
+  //
+  // Otimização pura: ordem de visita, desempate e o `break` em zero
+  // continuam idênticos — só corta reavaliação que dava o mesmo
+  // resultado de antes. Verificado com 13 planos byte a byte iguais.
+  // ------------------------------------------------------------
+  const RAIO_INVALIDACAO = 7;
+  const memoAvaliacao = new Map<string, ReturnType<typeof avaliar>>();
+
+  const chavesPorDia = new Map<DiaIso, string[]>();
+  for (const v of vagas) {
+    const chave = chaveVaga(v);
+    const lista = chavesPorDia.get(v.diaIso);
+    if (lista) lista.push(chave);
+    else chavesPorDia.set(v.diaIso, [chave]);
+  }
+
+  const invalidarAoRedor = (diaIso: DiaIso) => {
+    for (let d = -RAIO_INVALIDACAO; d <= RAIO_INVALIDACAO; d++) {
+      const chaves = chavesPorDia.get(desloca(diaIso, d));
+      if (!chaves) continue;
+      for (const chave of chaves) memoAvaliacao.delete(chave);
+    }
+  };
+
   while (pendentes.size > 0) {
     let escolhida: Vaga | null = null;
     let avaliacaoEscolhida: ReturnType<typeof avaliar> | null = null;
@@ -199,7 +231,11 @@ export function planejar(problema: ProblemaEscala): PlanoEscala {
 
     for (const chave of pendentes) {
       const vaga = vagaPorChave.get(chave)!;
-      const avaliacao = avaliar(vaga);
+      let avaliacao = memoAvaliacao.get(chave);
+      if (avaliacao === undefined) {
+        avaliacao = avaliar(vaga);
+        memoAvaliacao.set(chave, avaliacao);
+      }
       const quantos = avaliacao.viaveis.length;
       // Desempate por data e depois por turno: com tudo igual, a escala
       // sai na ordem do calendário, que é como uma pessoa leria.
@@ -236,6 +272,7 @@ export function planejar(problema: ProblemaEscala): PlanoEscala {
     aplicar(estado, melhorCandidato);
     atribuicoes.set(chaveVaga(vaga), { vaga, pessoa: melhorCandidato.pessoa });
     vagaDaPessoaNoDia.set(chavePessoaDia(melhorCandidato.pessoa.id, vaga.diaIso), vaga);
+    invalidarAoRedor(vaga.diaIso);
   }
 
   // ------------------------------------------------------------

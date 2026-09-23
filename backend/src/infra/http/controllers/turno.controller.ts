@@ -16,8 +16,8 @@ import { TurnoPresenter } from '../presenters/turno.presenter';
 
 // O controller é a PORTA DE ENTRADA HTTP. Ele só recebe a requisição,
 // extrai os dados e chama o service. Sem nenhuma regra de negócio.
-// @Controller('turno') = todas as rotas começam com /turno
-@Controller('turno')
+// @Controller('turnos') = todas as rotas começam com /turnos
+@Controller('turnos')
 export class TurnoController {
   constructor(private readonly service: TurnoService) {}
 

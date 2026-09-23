@@ -51,7 +51,7 @@ export function DeleteButton({
           setError(null);
           setConfirmando(true);
         }}
-        className="text-xs font-bold uppercase text-red-700 hover:underline dark:text-red-400"
+        className="text-xs font-semibold uppercase text-danger hover:underline"
       >
         Excluir
       </button>
@@ -63,10 +63,10 @@ export function DeleteButton({
             if (!loading) setConfirmando(false);
           }}
         >
-          <p className="text-sm text-black dark:text-zinc-50">{confirmMessage}</p>
+          <p className="text-sm text-text">{confirmMessage}</p>
 
           {error && (
-            <p className="mt-4 border-2 border-black bg-red-600 px-3 py-2 text-sm font-medium text-white">
+            <p className="mt-4 rounded-lg bg-danger px-3 py-2 text-sm font-medium text-white">
               {error}
             </p>
           )}
@@ -76,7 +76,7 @@ export function DeleteButton({
               type="button"
               disabled={loading}
               onClick={() => setConfirmando(false)}
-              className="border-2 border-black bg-white px-4 py-2 text-sm font-bold uppercase tracking-wide text-black transition-all hover:bg-zinc-100 active:translate-x-[2px] active:translate-y-[2px] dark:bg-zinc-900 dark:text-white disabled:opacity-50"
+              className="rounded-lg border border-border bg-card px-4 py-2 text-sm font-semibold text-text transition-colors hover:bg-text/5 disabled:opacity-50"
             >
               Cancelar
             </button>
@@ -84,7 +84,7 @@ export function DeleteButton({
               type="button"
               disabled={loading}
               onClick={handleDelete}
-              className="border-2 border-black bg-red-600 px-4 py-2 text-sm font-bold uppercase tracking-wide text-white shadow-[4px_4px_0_0_#000] transition-all hover:bg-red-700 active:translate-x-[2px] active:translate-y-[2px] active:shadow-none disabled:opacity-50"
+              className="rounded-lg bg-danger px-4 py-2 text-sm font-semibold text-white transition-colors hover:brightness-90 disabled:opacity-50"
             >
               {loading ? "Excluindo..." : "Excluir"}
             </button>

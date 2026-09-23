@@ -1,4 +1,5 @@
 import {
+  ArrayMaxSize,
   ArrayNotEmpty,
   IsArray,
   IsBoolean,
@@ -33,6 +34,12 @@ export class GerarEscalaAutomaticaDto {
   @IsOptional()
   @IsArray()
   @ArrayNotEmpty({ message: 'funcionarioIds, se informado, não pode ser vazio.' })
+  // Teto de tamanho. Uma equipe de posto tem dezenas de pessoas, não
+  // centenas — sem limite, a lista vira um `IN (...)` de tamanho
+  // arbitrário montado por quem chama a API.
+  @ArrayMaxSize(200, {
+    message: 'funcionarioIds não pode ter mais de 200 itens.',
+  })
   @IsInt({ each: true, message: 'funcionarioIds deve conter apenas números inteiros.' })
   funcionarioIds?: number[];
 

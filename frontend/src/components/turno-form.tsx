@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { apiPatch, apiPost } from "@/lib/api";
 
 const inputClass =
-  "border-2 border-black bg-white px-3 py-2 text-sm text-black dark:bg-zinc-900 dark:text-white";
+  "rounded-md border border-border bg-card px-3 py-2 text-sm text-text";
 
 const DIAS = ["dom", "seg", "ter", "qua", "qui", "sex", "sáb"];
 
@@ -68,8 +68,8 @@ export function TurnoForm({
     };
 
     try {
-      if (modoEdicao) await apiPatch(`/turno/${id}`, payload);
-      else await apiPost("/turno", payload);
+      if (modoEdicao) await apiPatch(`/turnos/${id}`, payload);
+      else await apiPost("/turnos", payload);
       if (onSalvo) onSalvo();
       else router.push("/turnos");
       router.refresh();
@@ -82,7 +82,7 @@ export function TurnoForm({
 
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-      <label className="flex flex-col gap-1 text-sm text-black dark:text-zinc-50">
+      <label className="flex flex-col gap-1 text-sm text-text">
         Descrição (opcional)
         <input
           maxLength={100}
@@ -94,7 +94,7 @@ export function TurnoForm({
       </label>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <label className="flex flex-col gap-1 text-sm text-black dark:text-zinc-50">
+        <label className="flex flex-col gap-1 text-sm text-text">
           Início
           <input
             type="time"
@@ -105,7 +105,7 @@ export function TurnoForm({
           />
         </label>
 
-        <label className="flex flex-col gap-1 text-sm text-black dark:text-zinc-50">
+        <label className="flex flex-col gap-1 text-sm text-text">
           Fim
           <input
             type="time"
@@ -121,7 +121,7 @@ export function TurnoForm({
         meia-noite.
       </p>
 
-      <label className="flex flex-col gap-1 text-sm text-black dark:text-zinc-50">
+      <label className="flex flex-col gap-1 text-sm text-text">
         Posto de trabalho
         <select
           value={form.postoId}
@@ -143,7 +143,7 @@ export function TurnoForm({
       </label>
 
       {form.postoId && (
-        <fieldset className="flex flex-col gap-2 border-2 border-black p-3">
+        <fieldset className="flex flex-col gap-2 rounded-lg border border-border p-3">
           <legend className="px-1 text-xs font-bold uppercase tracking-wide">
             Em que dias da semana este turno existe
           </legend>
@@ -157,13 +157,13 @@ export function TurnoForm({
                   onClick={() => alternarDia(dia)}
                   aria-pressed={aberto}
                   className={
-                    "flex flex-col items-center gap-1 border-2 border-black px-1 py-2 text-xs font-bold uppercase transition-colors " +
+                    "flex flex-col items-center gap-1 rounded-md border border-border px-1 py-2 text-xs font-bold uppercase transition-colors " +
                     (aberto
-                      ? "bg-red-600 text-white"
-                      : "bg-white text-zinc-400 dark:bg-zinc-900 dark:text-zinc-600")
+                      ? "bg-primary text-white"
+                      : "bg-card text-text-secondary")
                   }
                 >
-                  <span className={dia === 0 && !aberto ? "text-red-700 dark:text-red-400" : ""}>
+                  <span className={dia === 0 && !aberto ? "text-primary" : ""}>
                     {nome}
                   </span>
                   <span className="text-[10px] normal-case">{aberto ? "existe" : "não existe"}</span>
@@ -184,7 +184,7 @@ export function TurnoForm({
       )}
 
       {error && (
-        <p className="border-2 border-black bg-red-600 px-3 py-2 text-sm font-medium text-white">
+        <p className="rounded-lg bg-danger px-3 py-2 text-sm font-medium text-white">
           {error}
         </p>
       )}
@@ -192,7 +192,7 @@ export function TurnoForm({
       <button
         type="submit"
         disabled={loading}
-        className="mt-2 border-2 border-black bg-red-600 px-5 py-2.5 text-sm font-bold uppercase tracking-wide text-white shadow-[4px_4px_0_0_#000] transition-all hover:bg-red-700 active:translate-x-[2px] active:translate-y-[2px] active:shadow-none disabled:opacity-50"
+        className="mt-2 rounded-lg bg-primary px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-primary-hover disabled:opacity-50"
       >
         {loading ? "Salvando..." : "Salvar"}
       </button>

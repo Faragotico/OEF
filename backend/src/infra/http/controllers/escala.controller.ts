@@ -83,9 +83,11 @@ export class EscalaController {
     @Param('id', ParseIntPipe) id: number,
     @Res() res: Response,
   ): Promise<void> {
-    const buffer = await this.pdf.gerar(id);
+    const { buffer, nomeArquivo } = await this.pdf.gerar(id);
     res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', `attachment; filename="escala-${id}.pdf"`);
+    // O nome vem do posto e do período ("Matriz 01-04-26 a 30-04-26.pdf"),
+    // não do id: é o que o gestor procura na pasta de downloads.
+    res.setHeader('Content-Disposition', `attachment; filename="${nomeArquivo}"`);
     res.setHeader('Content-Length', buffer.length);
     res.send(buffer);
   }

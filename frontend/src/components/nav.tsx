@@ -89,9 +89,9 @@ const links: { href: string; label: string; icon: () => ReactNode }[] = [
   { href: "/alocacoes", label: "Alocações", icon: IconClipboardList },
 ];
 
-// Navegação lateral (sidebar): item ativo em bloco preto sólido (bordas
-// retas), tipografia em caixa alta e negrito — identidade "quadrada" e
-// nada minimalista, em tons de vermelho e preto.
+// Navegação lateral (sidebar): fundo verde-petróleo (cor principal da
+// marca), item ativo em destaque com a cor de hover do primário, cantos
+// arredondados e sem bordas grossas — visual limpo, estilo SaaS.
 export function Nav() {
   const pathname = usePathname();
 
@@ -107,8 +107,8 @@ export function Nav() {
             href={link.href}
             className={
               active
-                ? "flex items-center gap-3 border-2 border-black bg-black px-3 py-2.5 text-sm font-bold uppercase tracking-wide text-white transition-colors"
-                : "flex items-center gap-3 border-2 border-transparent px-3 py-2.5 text-sm font-bold uppercase tracking-wide text-white/70 transition-colors hover:border-black hover:bg-black/30 hover:text-white"
+                ? "flex items-center gap-3 rounded-lg bg-primary-hover px-3 py-2.5 text-sm font-medium text-white transition-colors"
+                : "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-white/70 transition-colors hover:bg-white/10 hover:text-white"
             }
           >
             <Icon />

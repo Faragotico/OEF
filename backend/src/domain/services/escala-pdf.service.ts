@@ -10,6 +10,7 @@ import {
   formatTime,
   shiftDurationHours,
 } from '../../helpers/date.helpers';
+import { nomeArquivoEscala, rotuloEscala } from '../../helpers/escala.helpers';
 
 type AlocacaoComRelacoes = Alocacao & {
   funcionario: Funcionario & { turnoPadrao: Turno | null };
@@ -32,6 +33,19 @@ type AlocacaoComRelacoes = Alocacao & {
 // que a define.
 const ehCoringa = (f: { turnoPadraoId: number | null }) => f.turnoPadraoId === null;
 
+// Escala de cinza: o quadro é impresso e fotocopiado, então quem
+// distingue uma célula da outra é o TOM e o RÓTULO, nunca o matiz.
+
+const TINTA = '#000000';        // texto e todas as bordas
+const PAPEL = '#ffffff';        // fundo normal
+const CABECALHO = '#e5e5e5';    // faixa de cabeçalho e célula de horário alterado
+const DOMINGO = '#f2f2f2';      // realce leve da linha de domingo
+const FOLGA = '#4d4d4d';        // folga comum — rótulo branco por cima
+const FOLGA_ABERTA = '#000000'; // folga que deixou a vaga sem cobertura
+const FERIADO = '#c9c9c9';      // feriado nacional — rótulo preto por cima
+const PONTO = '#9a9a9a';        // o "•" de turno padrão
+const SUBTITULO = '#3f3f3f';    // horário de casa, sob o nome da coluna
+
 @Injectable()
 export class EscalaPdfService {
   constructor(
@@ -39,7 +53,8 @@ export class EscalaPdfService {
     private readonly regras: RegrasTrabalhistasService,
   ) {}
 
-  async gerar(escalaId: number): Promise<Buffer> {
+  // Devolve nome+arquivo juntos: o controller não tem o posto pra montar o nome sozinho.
+  async gerar(escalaId: number): Promise<{ buffer: Buffer; nomeArquivo: string }> {
     const escala = await this.prisma.escala.findUnique({
       where: { id: escalaId },
       include: { posto: { include: { empresa: true } }, regra: true },
@@ -75,12 +90,17 @@ export class EscalaPdfService {
     },
     alocacoes: AlocacaoComRelacoes[],
     intervaloIntrajornada: number,
-  ): Promise<Buffer> {
-    return new Promise((resolve, reject) => {
+  ): Promise<{ buffer: Buffer; nomeArquivo: string }> {
+    return new Promise<{ buffer: Buffer; nomeArquivo: string }>((resolve, reject) => {
       const doc = new PDFDocument({ size: 'A4', layout: 'landscape', margin: 30 });
       const chunks: Buffer[] = [];
       doc.on('data', (chunk) => chunks.push(chunk));
-      doc.on('end', () => resolve(Buffer.concat(chunks)));
+      doc.on('end', () =>
+        resolve({
+          buffer: Buffer.concat(chunks),
+          nomeArquivo: nomeArquivoEscala(escala),
+        }),
+      );
       doc.on('error', reject);
 
       // ---- cabeçalho ----
@@ -91,12 +111,12 @@ export class EscalaPdfService {
       // separador) cabe tudo numa página A4 só, que era o pedido.
       doc
         .fontSize(13)
-        .fillColor('#dc2626')
+        .fillColor(TINTA)
         .text('OEF — Escala de Trabalho', { align: 'left' });
       doc.moveDown(0.2);
-      doc.fontSize(8).fillColor('#000');
+      doc.fontSize(8).fillColor(TINTA);
       doc.text(
-        `Escala #${escala.id} — Posto: ${escala.posto.nome} — ${escala.posto.localizacao} — Empresa: ${escala.posto.empresa.nome}`,
+        `${rotuloEscala(escala)} — ${escala.posto.localizacao} — Empresa: ${escala.posto.empresa.nome}`,
       );
       doc.text(
         `Período: ${formatDate(escala.dataInic)} a ${formatDate(escala.dataFim)}   |   Regra de escala: ${escala.regra.descricao} (${escala.regra.valor})`,
@@ -214,17 +234,17 @@ export class EscalaPdfService {
       function desenharCabecalhoColunas() {
         doc
           .rect(margin, y, diaColWidth, headerRowHeight)
-          .fillAndStroke('#fee2e2', '#000');
+          .fillAndStroke(CABECALHO, TINTA);
         doc
-          .fillColor('#000')
+          .fillColor(TINTA)
           .fontSize(7)
           .text('Dia', margin + 3, y + 6, { width: diaColWidth - 6 });
 
         funcionarios.forEach((f, i) => {
           const x = margin + diaColWidth + i * colWidth;
-          doc.rect(x, y, colWidth, headerRowHeight).fillAndStroke('#fee2e2', '#000');
+          doc.rect(x, y, colWidth, headerRowHeight).fillAndStroke(CABECALHO, TINTA);
           doc
-            .fillColor('#000')
+            .fillColor(TINTA)
             .fontSize(6.5)
             .text(f.nome, x + 2, y + 3, {
               width: colWidth - 4,
@@ -238,7 +258,7 @@ export class EscalaPdfService {
               : 'sem turno';
           doc
             .fontSize(6)
-            .fillColor('#7f1d1d')
+            .fillColor(SUBTITULO)
             .text(sub, x + 2, y + 11, {
               width: colWidth - 4,
               align: 'center',
@@ -246,7 +266,7 @@ export class EscalaPdfService {
             });
           doc
             .fontSize(6)
-            .fillColor('#000')
+            .fillColor(TINTA)
             .text(
               `${formatarHoras(horasPorFuncionario.get(f.id) ?? 0)} no período`,
               x + 2,
@@ -296,9 +316,9 @@ export class EscalaPdfService {
 
         doc
           .rect(margin, y, diaColWidth, rowHeight)
-          .fillAndStroke(domingo ? '#fef2f2' : '#ffffff', '#000');
+          .fillAndStroke(domingo ? DOMINGO : PAPEL, TINTA);
         doc
-          .fillColor('#000')
+          .fillColor(TINTA)
           .fontSize(Math.min(6.5, cellFontSize + 0.5))
           .text(
             labelDia,
@@ -323,11 +343,13 @@ export class EscalaPdfService {
               !ehCoringa(f) &&
               !!f.turnoPadrao &&
               !turnoCobertoNoDia.has(`${f.turnoPadrao.id}|${diaIso}`);
-            const cor = feriado ? '#78716c' : semCobertura ? '#7f1d1d' : '#dc2626';
+            const cor = feriado ? FERIADO : semCobertura ? FOLGA_ABERTA : FOLGA;
             const label = feriado ? 'FERIADO' : semCobertura ? 'FOLGA*' : 'FOLGA';
-            doc.rect(x, y, colWidth, rowHeight).fillAndStroke(cor, '#000');
+            // Sobre cinza claro o texto branco some: o feriado leva rótulo preto.
+            const corDoRotulo = feriado ? TINTA : PAPEL;
+            doc.rect(x, y, colWidth, rowHeight).fillAndStroke(cor, TINTA);
             doc
-              .fillColor('#ffffff')
+              .fillColor(corDoRotulo)
               .fontSize(cellFontSize)
               .text(label, x, y + offsetY, {
                 width: colWidth,
@@ -338,18 +360,18 @@ export class EscalaPdfService {
 
           const ehPadrao = !ehCoringa(f) && alocacao.turnoId === f.turnoPadrao?.id;
           if (ehPadrao) {
-            doc.rect(x, y, colWidth, rowHeight).fillAndStroke('#ffffff', '#000');
+            doc.rect(x, y, colWidth, rowHeight).fillAndStroke(PAPEL, TINTA);
             doc
-              .fillColor('#a1a1aa')
+              .fillColor(PONTO)
               .fontSize(cellFontSize)
               .text('•', x, y + offsetY, { width: colWidth, align: 'center' });
             return;
           }
 
-          doc.rect(x, y, colWidth, rowHeight).fillAndStroke('#fee2e2', '#000');
+          doc.rect(x, y, colWidth, rowHeight).fillAndStroke(CABECALHO, TINTA);
           const label = `${formatTime(alocacao.turno.horaInicio)}–${formatTime(alocacao.turno.horaFim)}`;
           doc
-            .fillColor('#7f1d1d')
+            .fillColor(TINTA)
             .fontSize(cellFontSize)
             .text(label, x, y + offsetY, { width: colWidth, align: 'center' });
         });
@@ -369,7 +391,7 @@ export class EscalaPdfService {
         y = margin;
       }
       doc
-        .fillColor('#000')
+        .fillColor(TINTA)
         .fontSize(6.5)
         .text(
           '• = turno padrão do titular   |   horário destacado = turno alterado, substituição ou coringa   |   FOLGA = dia de descanso',

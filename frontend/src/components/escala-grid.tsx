@@ -300,19 +300,19 @@ export function EscalaGrid({
       </p>
 
       {erroCelula && (
-        <p className="border-2 border-black bg-red-600 px-3 py-2 text-sm font-medium text-white">
+        <p className="rounded-lg bg-danger px-3 py-2 text-sm font-medium text-white">
           {erroCelula}
         </p>
       )}
 
-      <div className="overflow-x-auto border-2 border-black bg-white shadow-[4px_4px_0_0_#000] dark:bg-zinc-900">
+      <div className="overflow-x-auto rounded-lg border border-border bg-card">
         <table className="w-full border-collapse text-center text-sm">
-          <thead className="bg-red-100 dark:bg-red-950/40">
+          <thead className="border-b border-border bg-card">
             <tr>
-              <th className="sticky left-0 z-10 bg-red-100 px-4 py-3 text-left font-medium dark:bg-zinc-900">
+              <th className="sticky left-0 z-10 bg-card px-4 py-3 text-left font-medium">
                 <div>Dia</div>
                 {mesAnoUnico && (
-                  <div className="text-xs font-bold uppercase text-red-700 dark:text-red-400">
+                  <div className="text-xs font-semibold uppercase text-primary">
                     {mesAnoUnico}
                   </div>
                 )}
@@ -323,7 +323,7 @@ export function EscalaGrid({
                   <div className="text-xs font-normal text-zinc-500 dark:text-zinc-400">
                     {f.coringa ? "coringa" : turnoLabel(f.turnoPadrao)}
                   </div>
-                  <div className="text-xs font-bold text-red-700 dark:text-red-400">
+                  <div className="text-xs font-semibold text-primary">
                     {formatarHoras(f.horasNoPeriodo)} no período
                   </div>
                 </th>
@@ -335,18 +335,18 @@ export function EscalaGrid({
               <tr
                 key={dia}
                 className={
-                  "border-t-2 border-black " +
-                  (ehDomingo(dia) ? "bg-red-50 dark:bg-red-950/20" : "")
+                  "border-t border-border " +
+                  (ehDomingo(dia) ? "bg-text/[0.03]" : "")
                 }
               >
-                <td className="sticky left-0 z-10 bg-white px-4 py-2 text-left dark:bg-black">
+                <td className="sticky left-0 z-10 bg-card px-4 py-2 text-left">
                   {diasComMesAno.has(dia) && (
-                    <div className="text-[10px] font-bold uppercase text-red-700 dark:text-red-400">
+                    <div className="text-[10px] font-semibold uppercase text-primary">
                       {mesAnoLabel(dia)}
                     </div>
                   )}
                   {diaCurto(dia)}{" "}
-                  <span className="text-zinc-400">({diaSemana(dia)})</span>
+                  <span className="text-text-secondary">({diaSemana(dia)})</span>
                 </td>
                 {colunas.map((f) => {
                   const atual = f.alocacaoPorDia.get(dia);
@@ -368,7 +368,7 @@ export function EscalaGrid({
                               disabled={salvando}
                               value={horaInicioCustom}
                               onChange={(e) => setHoraInicioCustom(e.target.value)}
-                              className="w-full border-2 border-black bg-white px-1 py-1 text-xs dark:bg-zinc-900 dark:text-white"
+                              className="w-full rounded-md border border-border bg-card px-1 py-1 text-xs text-text"
                             />
                             <span className="text-xs">–</span>
                             <input
@@ -376,7 +376,7 @@ export function EscalaGrid({
                               disabled={salvando}
                               value={horaFimCustom}
                               onChange={(e) => setHoraFimCustom(e.target.value)}
-                              className="w-full border-2 border-black bg-white px-1 py-1 text-xs dark:bg-zinc-900 dark:text-white"
+                              className="w-full rounded-md border border-border bg-card px-1 py-1 text-xs text-text"
                             />
                           </div>
                           <div className="flex items-center gap-1">
@@ -389,7 +389,7 @@ export function EscalaGrid({
                                   horaFim: horaFimCustom,
                                 })
                               }
-                              className="flex-1 border-2 border-black bg-red-600 px-1 py-1 text-xs font-bold text-white hover:bg-red-700 disabled:opacity-50"
+                              className="flex-1 rounded-md bg-primary px-1 py-1 text-xs font-bold text-white hover:bg-primary-hover disabled:opacity-50"
                             >
                               Salvar
                             </button>
@@ -397,7 +397,7 @@ export function EscalaGrid({
                               type="button"
                               disabled={salvando}
                               onClick={fecharEdicao}
-                              className="border-2 border-black bg-white px-1 py-1 text-xs dark:bg-zinc-900 dark:text-white"
+                              className="rounded-md border border-border bg-card px-1 py-1 text-xs text-text"
                             >
                               Cancelar
                             </button>
@@ -421,7 +421,7 @@ export function EscalaGrid({
                             }
                             salvarCelula(f.id, dia, atual, e.target.value);
                           }}
-                          className="w-full border-2 border-black bg-white px-1 py-1 text-xs dark:bg-zinc-900 dark:text-white"
+                          className="w-full rounded-md border border-border bg-card px-1 py-1 text-xs text-text"
                         >
                           <option value="folga">Folga</option>
                           {turnosState.map((t) => (
@@ -442,7 +442,7 @@ export function EscalaGrid({
                         key={f.id}
                         title={motivo ?? "Clique pra editar"}
                         onClick={() => abrirEdicao(f.id, dia)}
-                        className="cursor-pointer bg-red-600 px-4 py-2 font-black text-white hover:bg-red-700"
+                        className="cursor-pointer bg-folga-bg px-4 py-2 font-black text-folga-text hover:brightness-95"
                       >
                         F
                       </td>
@@ -456,7 +456,7 @@ export function EscalaGrid({
                         key={f.id}
                         title="Clique pra editar"
                         onClick={() => abrirEdicao(f.id, dia)}
-                        className="cursor-pointer px-4 py-2 text-zinc-300 hover:bg-zinc-100 dark:text-zinc-700 dark:hover:bg-zinc-800"
+                        className="cursor-pointer px-4 py-2 text-text-secondary/40 hover:bg-text/5"
                       >
                         ·
                       </td>
@@ -474,7 +474,7 @@ export function EscalaGrid({
                         " — clique pra editar"
                       }
                       onClick={() => abrirEdicao(f.id, dia)}
-                      className="cursor-pointer bg-red-100 px-4 py-2 text-xs font-bold text-red-900 hover:bg-red-200 dark:bg-red-950/40 dark:text-red-100 dark:hover:bg-red-950/70"
+                      className="cursor-pointer bg-substituicao-bg px-4 py-2 text-xs font-bold text-substituicao-text hover:brightness-95"
                     >
                       {turno ? `${turno.horaInicio}–${turno.horaFim}` : `#${atual.turnoId}`}
                     </td>

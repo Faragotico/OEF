@@ -45,13 +45,13 @@ const SECOES = [
 
 export default function Home() {
   return (
-    <main className="min-h-screen bg-zinc-50 px-8 py-8 dark:bg-black">
+    <main className="min-h-screen bg-background px-8 py-8">
       <div className="mx-auto max-w-4xl">
-        <div className="mb-8 animate-fade-in-up border-2 border-black bg-red-600 p-6 text-white shadow-[4px_4px_0_0_#000]">
+        <div className="mb-8 animate-fade-in-up rounded-lg bg-primary p-6 text-white">
           <h1 className="text-2xl font-black uppercase tracking-wide">
             OEF — Organizador de Escalas de Funcionários
           </h1>
-          <p className="mt-2 max-w-2xl text-sm text-red-100">
+          <p className="mt-2 max-w-2xl text-sm text-white/80">
             Cadastro de funcionários, postos e turnos, geração automática
             de escala com rodízio de folga e coringa de cobertura,
             respeitando as regras trabalhistas — tudo num só lugar.
@@ -64,9 +64,9 @@ export default function Home() {
               key={s.href}
               href={s.href}
               style={{ animationDelay: `${i * 60}ms` }}
-              className="oef-lift group flex animate-fade-in-up flex-col gap-1 border-2 border-black bg-white p-4 shadow-[4px_4px_0_0_#000] transition-colors hover:bg-red-50 active:translate-x-[2px] active:translate-y-[2px] active:shadow-none dark:bg-zinc-900 dark:hover:bg-red-950/20"
+              className="oef-lift group flex animate-fade-in-up flex-col gap-1 rounded-lg border border-border bg-card p-4 transition-colors hover:bg-text/5"
             >
-              <span className="text-sm font-black uppercase tracking-wide text-black group-hover:text-red-700 dark:text-zinc-50 dark:group-hover:text-red-400">
+              <span className="text-sm font-black uppercase tracking-wide text-text group-hover:text-primary">
                 {s.titulo} →
               </span>
               <span className="text-xs text-zinc-500 dark:text-zinc-400">

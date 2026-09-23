@@ -72,7 +72,7 @@ type ResultadoGeracao = {
 const DIAS_SEMANA = ["dom", "seg", "ter", "qua", "qui", "sex", "sáb"];
 
 const inputClass =
-  "border-2 border-black bg-white px-3 py-2 text-sm text-black dark:bg-zinc-900 dark:text-white";
+  "rounded-md border border-border bg-card px-3 py-2 text-sm text-text";
 
 function turnoLabel(t: { descricao: string | null; horaInicio: string; horaFim: string } | null) {
   if (!t) return "sem turno de casa";
@@ -98,13 +98,13 @@ function FuncionarioChip({
       type="button"
       aria-pressed={selecionado}
       onClick={onToggle}
-      className="flex items-center gap-3 rounded px-2 py-2 text-left text-sm transition-colors hover:bg-red-50 dark:hover:bg-red-950/20"
+      className="flex items-center gap-3 rounded px-2 py-2 text-left text-sm transition-colors hover:bg-text/5"
     >
       <span
         className={
           "flex h-4 w-4 flex-none items-center justify-center rounded-sm border text-[10px] font-black transition-colors " +
           (selecionado
-            ? "border-red-600 bg-red-600 text-white"
+            ? "border-primary bg-primary text-white"
             : "border-zinc-400 bg-white text-transparent dark:border-zinc-600 dark:bg-zinc-900")
         }
       >
@@ -114,7 +114,7 @@ function FuncionarioChip({
         <span
           className={
             "font-medium " +
-            (selecionado ? "text-red-700 dark:text-red-400" : "text-black dark:text-white")
+            (selecionado ? "text-primary" : "text-text")
           }
         >
           {nome}
@@ -155,10 +155,10 @@ function PreviaGrade({
   const feriados = new Set(resultado.feriadosNoPeriodo);
 
   return (
-    <div className="overflow-x-auto border-2 border-black">
+    <div className="overflow-x-auto rounded-lg border border-border bg-card">
       <table className="w-full border-collapse text-[11px]">
-        <thead>
-          <tr className="bg-black text-white">
+        <thead className="border-b border-border bg-card">
+          <tr>
             <th className="px-2 py-1.5 text-left font-bold">Dia</th>
             {resultado.pessoas.map((p) => (
               <th key={p.id} className="px-2 py-1.5 font-bold">
@@ -194,7 +194,7 @@ function PreviaGrade({
                         "px-2 py-1 text-center tabular-nums " +
                         (alocacao
                           ? alocacao.foraDoPreferido || p.coringa
-                            ? "bg-red-100 font-medium dark:bg-red-950/40"
+                            ? "bg-substituicao-bg font-medium text-substituicao-text"
                             : ""
                           : "text-zinc-400 dark:text-zinc-600")
                       }
@@ -210,7 +210,7 @@ function PreviaGrade({
                 <td
                   className={
                     "px-2 py-1 text-center font-bold tabular-nums " +
-                    (vazias > 0 ? "bg-amber-200 dark:bg-amber-900/50" : "text-zinc-300 dark:text-zinc-700")
+                    (vazias > 0 ? "bg-cobertura-bg text-cobertura-text" : "text-zinc-300 dark:text-zinc-700")
                   }
                 >
                   {vazias || "—"}
@@ -229,15 +229,15 @@ function PreviaGrade({
 // retângulo vermelho e o gestor não tinha como saber o que precisava de
 // ação e o que era só nota de rodapé.
 const ESTILO_NIVEL = {
-  erro: "border-red-700 bg-red-600 text-white",
-  aviso: "border-black bg-amber-100 text-amber-950 dark:bg-amber-950/40 dark:text-amber-100",
-  info: "border-black bg-zinc-100 text-zinc-700 dark:bg-zinc-900 dark:text-zinc-300",
+  erro: "bg-danger text-white",
+  aviso: "border border-warning/20 bg-warning/10 text-warning",
+  info: "border border-border bg-text/5 text-text-secondary",
 } as const;
 
 function CartaoDiagnostico({ diagnostico }: { diagnostico: Diagnostico }) {
   const { nivel, titulo, detalhe, acao } = traduzir(diagnostico);
   return (
-    <div className={`border-2 px-4 py-3 text-sm ${ESTILO_NIVEL[nivel]}`}>
+    <div className={`rounded-lg px-4 py-3 text-sm ${ESTILO_NIVEL[nivel]}`}>
       <p className="font-bold">{titulo}</p>
       <p className="mt-1 text-[13px] leading-snug opacity-90">{detalhe}</p>
       {acao && (
@@ -406,7 +406,7 @@ export function GerarEscalaForm({
   return (
     <div className="flex flex-col gap-8">
       <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-        <label className="flex flex-col gap-1 text-sm text-black dark:text-zinc-50">
+        <label className="flex flex-col gap-1 text-sm text-text">
           Posto de trabalho
           <select
             required
@@ -426,8 +426,8 @@ export function GerarEscalaForm({
             mudança mais direta de quem entende a tela: a escala sai
             daqui, então isto precisa estar à vista. */}
         {turnosDoPosto.length > 0 ? (
-          <div className="border-2 border-black bg-white dark:bg-zinc-900">
-            <p className="border-b-2 border-black px-3 py-2 text-xs font-bold uppercase tracking-wide">
+          <div className="rounded-lg border border-border bg-card">
+            <p className="border-b border-border px-3 py-2 text-xs font-bold uppercase tracking-wide">
               Grade de horários deste posto — em que dias cada turno existe
             </p>
             <div className="overflow-x-auto">
@@ -469,14 +469,14 @@ export function GerarEscalaForm({
             </p>
           </div>
         ) : (
-          <p className="border-2 border-black bg-red-600 px-3 py-2 text-sm font-medium text-white">
+          <p className="rounded-lg bg-danger px-3 py-2 text-sm font-medium text-white">
             Este posto não tem turno cadastrado. A escala é gerada a partir da grade de
             horários do posto — cadastre os turnos na tela Turnos antes de gerar.
           </p>
         )}
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <label className="flex flex-col gap-1 text-sm text-black dark:text-zinc-50">
+          <label className="flex flex-col gap-1 text-sm text-text">
             Data início
             <input
               type="date"
@@ -486,7 +486,7 @@ export function GerarEscalaForm({
               className={inputClass}
             />
           </label>
-          <label className="flex flex-col gap-1 text-sm text-black dark:text-zinc-50">
+          <label className="flex flex-col gap-1 text-sm text-text">
             Data fim
             <input
               type="date"
@@ -498,7 +498,7 @@ export function GerarEscalaForm({
           </label>
         </div>
 
-        <label className="flex flex-col gap-1 text-sm text-black dark:text-zinc-50">
+        <label className="flex flex-col gap-1 text-sm text-text">
           Padrão de rodízio
           <select value={regraId} onChange={(e) => setRegraId(e.target.value)} className={inputClass}>
             <option value="">Usar a primeira regra de rodízio cadastrada</option>
@@ -515,10 +515,10 @@ export function GerarEscalaForm({
           </select>
         </label>
 
-        <fieldset className="flex flex-col gap-2 text-sm text-black dark:text-zinc-50">
+        <fieldset className="flex flex-col gap-2 text-sm text-text">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <legend className="mb-0">Equipe deste posto</legend>
-            <span className="flex-none border-2 border-black bg-black px-2 py-0.5 text-xs font-bold text-white">
+            <span className="flex-none rounded-full bg-primary px-2 py-0.5 text-xs font-semibold text-white">
               {marcados}/{titulares.length + coringas.length} marcados
             </span>
           </div>
@@ -550,7 +550,7 @@ export function GerarEscalaForm({
           </div>
 
           {incompletos.length > 0 && (
-            <p className="mt-2 border-2 border-black bg-amber-100 px-3 py-2 text-xs font-medium text-amber-950 dark:bg-amber-950/40 dark:text-amber-100">
+            <p className="mt-2 rounded-lg border border-warning/20 bg-warning/10 px-3 py-2 text-xs font-medium text-warning">
               {incompletos.length} funcionário(s) com cadastro incompleto não aparecem
               aqui: {incompletos.map((f) => f.nome).join(", ")}. Defina o turno de casa
               deles, ou marque em quais turnos podem ser escalados.
@@ -558,7 +558,7 @@ export function GerarEscalaForm({
           )}
         </fieldset>
 
-        <label className="flex items-start gap-2 text-sm text-black dark:text-zinc-50">
+        <label className="flex items-start gap-2 text-sm text-text">
           <input
             type="checkbox"
             checked={permitirForaDoPreferido}
@@ -576,7 +576,7 @@ export function GerarEscalaForm({
         </label>
 
         {previaDeCapacidade && previaDeCapacidade.vagasPorSemana > previaDeCapacidade.capacidadePorSemana && (
-          <p className="border-2 border-black bg-amber-100 px-3 py-2 text-xs font-medium text-amber-950 dark:bg-amber-950/40 dark:text-amber-100">
+          <p className="rounded-lg border border-warning/20 bg-warning/10 px-3 py-2 text-xs font-medium text-warning">
             A grade pede ~{previaDeCapacidade.vagasPorSemana} coberturas por semana e a
             equipe marcada dá conta de ~{previaDeCapacidade.capacidadePorSemana}. Algumas
             vagas vão ficar vazias — simule antes de gerar pra ver quais.
@@ -584,7 +584,7 @@ export function GerarEscalaForm({
         )}
 
         {error && (
-          <p className="border-2 border-black bg-red-600 px-3 py-2 text-sm font-medium text-white">
+          <p className="rounded-lg bg-danger px-3 py-2 text-sm font-medium text-white">
             {error}
           </p>
         )}
@@ -598,7 +598,7 @@ export function GerarEscalaForm({
             type="button"
             disabled={!podeEnviar}
             onClick={() => enviar("simular")}
-            className="flex items-center justify-center gap-2 border-2 border-black bg-white px-5 py-2.5 text-sm font-bold uppercase tracking-wide text-black shadow-[4px_4px_0_0_#000] transition-all hover:bg-zinc-100 active:translate-x-[2px] active:translate-y-[2px] active:shadow-none disabled:opacity-50 dark:bg-zinc-900 dark:text-white"
+            className="flex items-center justify-center gap-2 rounded-lg border border-border bg-card px-5 py-2.5 text-sm font-semibold text-text transition-colors hover:bg-text/5 disabled:opacity-50"
           >
             {carregando === "simular" && <span className="spinner-square" aria-hidden />}
             {carregando === "simular" ? "Simulando..." : "Simular"}
@@ -606,7 +606,7 @@ export function GerarEscalaForm({
           <button
             type="submit"
             disabled={!podeEnviar}
-            className="flex items-center justify-center gap-2 border-2 border-black bg-red-600 px-5 py-2.5 text-sm font-bold uppercase tracking-wide text-white shadow-[4px_4px_0_0_#000] transition-all hover:bg-red-700 active:translate-x-[2px] active:translate-y-[2px] active:shadow-none disabled:opacity-50"
+            className="flex items-center justify-center gap-2 rounded-lg bg-primary px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-primary-hover disabled:opacity-50"
           >
             {carregando === "gerar" && <span className="spinner-square" aria-hidden />}
             {carregando === "gerar" ? "Gerando..." : "Gerar e salvar"}
@@ -618,10 +618,10 @@ export function GerarEscalaForm({
         <div className="flex flex-col gap-4">
           <div
             className={
-              "flex flex-wrap items-center justify-between gap-2 border-2 px-4 py-3 text-sm font-medium " +
+              "flex flex-wrap items-center justify-between gap-2 rounded-lg px-4 py-3 text-sm font-medium " +
               (resultado.simulacao
-                ? "border-dashed border-black bg-zinc-100 text-zinc-800 dark:bg-zinc-900 dark:text-zinc-200"
-                : "border-black bg-red-100 text-red-900 dark:bg-red-950/40 dark:text-red-100")
+                ? "border border-dashed border-border bg-text/5 text-text-secondary"
+                : "border border-success/20 bg-success/10 text-success")
             }
           >
             <span>
@@ -644,7 +644,7 @@ export function GerarEscalaForm({
             {!resultado.simulacao && resultado.escala && (
               <Link
                 href={`/escalas/${resultado.escala.id}`}
-                className="border-2 border-black bg-black px-3 py-1.5 text-xs font-bold uppercase tracking-wide text-white transition-colors hover:bg-red-900"
+                className="rounded-md bg-primary px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-primary-hover"
               >
                 Abrir esta escala →
               </Link>
@@ -659,7 +659,7 @@ export function GerarEscalaForm({
             ))}
 
           {vaziasPorTurno.length > 0 && (
-            <div className="border-2 border-black bg-amber-100 px-4 py-3 text-sm text-amber-950 dark:bg-amber-950/40 dark:text-amber-100">
+            <div className="rounded-lg border border-border bg-cobertura-bg px-4 py-3 text-sm text-cobertura-text">
               <p className="font-bold">
                 {resultado.vagasVazias.length} vaga(s) ficaram sem ninguém
               </p>
@@ -680,14 +680,14 @@ export function GerarEscalaForm({
           )}
 
           {resultado.funcionariosSemTurno.length > 0 && (
-            <div className="border-2 border-black bg-amber-100 px-4 py-3 text-sm text-amber-950 dark:bg-amber-950/40 dark:text-amber-100">
+            <div className="rounded-lg border border-warning/20 bg-warning/10 px-4 py-3 text-sm text-warning">
               Ficaram de fora por cadastro incompleto:{" "}
               {resultado.funcionariosSemTurno.map((f) => f.nome).join(", ")}.
             </div>
           )}
 
           {resultado.feriadosNoPeriodo.length > 0 && (
-            <div className="border-2 border-black bg-zinc-100 px-4 py-3 text-sm text-zinc-700 dark:bg-zinc-900 dark:text-zinc-300">
+            <div className="rounded-lg border border-border bg-text/5 px-4 py-3 text-sm text-text-secondary">
               Feriado(s) no período (o posto não abre por padrão, e ninguém foi
               escalado): {resultado.feriadosNoPeriodo.join(", ")}. Edite a alocação
               manualmente se precisar manter cobertura em algum deles.

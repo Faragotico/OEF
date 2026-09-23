@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { apiGet } from "@/lib/api";
+import { apiGet } from "@/lib/api-server";
 import { RegraForm } from "@/components/regra-form";
 
 type Regra = {
@@ -31,12 +31,12 @@ export default async function EditarRegraPage({
   // um tipo válido, se for o caso.
   if (!TIPOS_VALIDOS.has(regra.tipo)) {
     return (
-      <main className="min-h-screen bg-zinc-50 px-8 py-8 dark:bg-black">
+      <main className="min-h-screen bg-background px-8 py-8">
         <div className="mx-auto max-w-xl">
-          <h1 className="mb-6 text-2xl font-semibold text-black dark:text-zinc-50">
+          <h1 className="mb-6 text-2xl font-semibold text-text">
             Editar Regra
           </h1>
-          <div className="border-2 border-black bg-red-100 p-6 text-sm text-red-900 shadow-[4px_4px_0_0_#000] dark:bg-red-950/40 dark:text-red-100">
+          <div className="rounded-lg border border-danger/20 bg-danger/10 p-6 text-sm text-danger">
             <p className="mb-2 font-bold">
               Esta regra tem um tipo antigo (&quot;{regra.tipo}&quot;) que não existe
               mais no sistema.
@@ -50,7 +50,7 @@ export default async function EditarRegraPage({
           </div>
           <Link
             href="/regras"
-            className="mt-6 inline-block border-2 border-black bg-white px-4 py-2.5 text-sm font-bold uppercase tracking-wide text-black shadow-[4px_4px_0_0_#000] transition-all hover:bg-zinc-100 active:translate-x-[2px] active:translate-y-[2px] active:shadow-none dark:bg-zinc-900 dark:text-white"
+            className="mt-6 inline-block rounded-lg border border-border bg-card px-4 py-2.5 text-sm font-semibold text-text transition-colors hover:bg-text/5"
           >
             ← Voltar para Regras
           </Link>
@@ -60,13 +60,13 @@ export default async function EditarRegraPage({
   }
 
   return (
-    <main className="min-h-screen bg-zinc-50 px-8 py-8 dark:bg-black">
+    <main className="min-h-screen bg-background px-8 py-8">
       <div className="mx-auto max-w-xl">
-        <h1 className="mb-6 text-2xl font-semibold text-black dark:text-zinc-50">
+        <h1 className="mb-6 text-2xl font-semibold text-text">
           Editar Regra
         </h1>
 
-        <div className="border-2 border-black bg-white p-6 shadow-[4px_4px_0_0_#000] dark:bg-zinc-900">
+        <div className="rounded-lg border border-border bg-card p-6">
           <RegraForm
             id={regra.id}
             valoresIniciais={{

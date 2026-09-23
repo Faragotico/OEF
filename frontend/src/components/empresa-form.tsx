@@ -6,7 +6,7 @@ import { apiPatch, apiPost } from "@/lib/api";
 import { formatarTelefone } from "@/lib/telefone";
 
 const inputClass =
-  "border-2 border-black bg-white px-3 py-2 text-sm text-black dark:bg-zinc-900 dark:text-white";
+  "rounded-md border border-border bg-card px-3 py-2 text-sm text-text";
 
 type ValoresEmpresa = {
   nome: string;
@@ -69,7 +69,7 @@ export function EmpresaForm({
 
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-      <label className="flex flex-col gap-1 text-sm text-black dark:text-zinc-50">
+      <label className="flex flex-col gap-1 text-sm text-text">
         Nome
         <input
           required
@@ -81,7 +81,7 @@ export function EmpresaForm({
         />
       </label>
 
-      <label className="flex flex-col gap-1 text-sm text-black dark:text-zinc-50">
+      <label className="flex flex-col gap-1 text-sm text-text">
         CNPJ (14 caracteres alfanuméricos, sem máscara)
         <input
           required
@@ -109,7 +109,7 @@ export function EmpresaForm({
         />
       </label>
 
-      <label className="flex flex-col gap-1 text-sm text-black dark:text-zinc-50">
+      <label className="flex flex-col gap-1 text-sm text-text">
         Contato (telefone, opcional)
         <input
           type="tel"
@@ -129,7 +129,7 @@ export function EmpresaForm({
       </label>
 
       {error && (
-        <p className="border-2 border-black bg-red-600 px-3 py-2 text-sm font-medium text-white">
+        <p className="rounded-lg bg-danger px-3 py-2 text-sm font-medium text-white">
           {error}
         </p>
       )}
@@ -137,7 +137,7 @@ export function EmpresaForm({
       <button
         type="submit"
         disabled={loading}
-        className="mt-2 border-2 border-black bg-red-600 px-5 py-2.5 text-sm font-bold uppercase tracking-wide text-white shadow-[4px_4px_0_0_#000] transition-all hover:bg-red-700 active:translate-x-[2px] active:translate-y-[2px] active:shadow-none disabled:opacity-50"
+        className="mt-2 rounded-lg bg-primary px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-primary-hover disabled:opacity-50"
       >
         {loading ? "Salvando..." : "Salvar"}
       </button>

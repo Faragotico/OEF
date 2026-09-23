@@ -1,4 +1,4 @@
-import { apiGet } from "@/lib/api";
+import { apiGet } from "@/lib/api-server";
 import { AlocacoesFilter } from "@/components/alocacoes-filter";
 
 type Funcionario = { id: number; nome: string; coringa: boolean };
@@ -70,15 +70,15 @@ export default async function AlocacoesPage({
   const [alocacoes, funcionarios, turnos, escalas] = await Promise.all([
     apiGet<AlocacoesPaginadas>(`/alocacoes${paraQueryString(params)}`),
     apiGet<Funcionario[]>("/funcionarios"),
-    apiGet<Turno[]>("/turno"),
+    apiGet<Turno[]>("/turnos"),
     apiGet<Escala[]>("/escalas"),
   ]);
 
   return (
-    <main className="min-h-screen bg-zinc-50 px-8 py-8 dark:bg-black">
+    <main className="min-h-screen bg-background px-8 py-8">
       <div className="mx-auto max-w-5xl">
         <div className="mb-6">
-          <h1 className="text-2xl font-semibold text-black dark:text-zinc-50">
+          <h1 className="text-2xl font-semibold text-text">
             Alocações
           </h1>
           <p className="text-sm text-zinc-500 dark:text-zinc-400">

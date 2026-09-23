@@ -32,12 +32,12 @@ function MiniDemanda({ demanda }: { demanda: number[] }) {
           key={dia}
           title={`${DIAS[dia]}: ${q} pessoa(s)`}
           className={
-            "flex h-5 w-5 items-center justify-center border text-[10px] font-bold tabular-nums " +
+            "flex h-5 w-5 items-center justify-center rounded-sm border text-[10px] font-bold tabular-nums " +
             (q === 0
               ? "border-zinc-200 text-zinc-300 dark:border-zinc-700 dark:text-zinc-700"
               : dia === 0
-                ? "border-red-600 bg-red-100 text-red-800 dark:bg-red-950/50 dark:text-red-200"
-                : "border-black bg-white dark:bg-zinc-900")
+                ? "border-primary/30 bg-primary/10 text-primary"
+                : "border-border bg-card")
           }
         >
           {q === 0 ? "–" : q}
@@ -54,7 +54,7 @@ export function TurnosList({ turnos, postos }: { turnos: Turno[]; postos: Posto[
     <>
       <div className="mb-6 flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-semibold text-black dark:text-zinc-50">Turnos</h1>
+          <h1 className="text-2xl font-semibold text-text">Turnos</h1>
           {/* A tela mudou de papel: deixou de ser "uma lista de horários
               que existem" e passou a ser onde a grade de cada posto é
               definida. A escala sai daqui. */}
@@ -67,15 +67,15 @@ export function TurnosList({ turnos, postos }: { turnos: Turno[]; postos: Posto[
         <button
           type="button"
           onClick={() => setModal({ modo: "novo" })}
-          className="flex-none border-2 border-black bg-red-600 px-4 py-2.5 text-sm font-bold uppercase tracking-wide text-white shadow-[4px_4px_0_0_#000] transition-all hover:bg-red-700 active:translate-x-[2px] active:translate-y-[2px] active:shadow-none"
+          className="flex-none rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-primary-hover"
         >
           + Novo Turno
         </button>
       </div>
 
-      <div className="overflow-x-auto border-2 border-black bg-white shadow-[4px_4px_0_0_#000] dark:bg-zinc-900">
+      <div className="overflow-x-auto rounded-lg border border-border bg-card">
         <table className="w-full border-collapse text-left text-sm">
-          <thead className="bg-red-100 dark:bg-red-950/40">
+          <thead className="border-b border-border bg-card">
             <tr>
               <th className="px-4 py-3 font-medium">Posto</th>
               <th className="px-4 py-3 font-medium">Descrição</th>
@@ -88,7 +88,7 @@ export function TurnosList({ turnos, postos }: { turnos: Turno[]; postos: Posto[
             {turnos.map((t) => (
               <tr
                 key={t.id}
-                className="border-t-2 border-black transition-colors hover:bg-red-50 dark:hover:bg-red-950/20"
+                className="border-t border-border transition-colors hover:bg-text/5"
               >
                 <td className="px-4 py-3">
                   {t.posto?.nome ?? (
@@ -111,12 +111,12 @@ export function TurnosList({ turnos, postos }: { turnos: Turno[]; postos: Posto[
                     <button
                       type="button"
                       onClick={() => setModal({ modo: "editar", turno: t })}
-                      className="text-xs font-bold uppercase text-black hover:underline dark:text-white"
+                      className="text-xs font-semibold uppercase text-primary hover:underline"
                     >
                       Editar
                     </button>
                     <DeleteButton
-                      path={`/turno/${t.id}`}
+                      path={`/turnos/${t.id}`}
                       confirmMessage="Excluir este turno? Só funciona se não houver alocações vinculadas a ele."
                     />
                   </div>

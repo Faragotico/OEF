@@ -19,7 +19,7 @@ export type CamposEscala = {
 const DIAS = ["domingo", "segunda", "terça", "quarta", "quinta", "sexta", "sábado"];
 
 const inputClass =
-  "border-2 border-black bg-white px-3 py-2 text-sm text-black dark:bg-zinc-900 dark:text-white";
+  "rounded-md border border-border bg-card px-3 py-2 text-sm text-text";
 
 export function turnoLabel(t: Turno) {
   return t.descricao
@@ -73,7 +73,7 @@ export function FuncionarioCamposEscala({
 
   return (
     <>
-      <label className="flex items-start gap-2 text-sm text-black dark:text-zinc-50">
+      <label className="flex items-start gap-2 text-sm text-text">
         <input
           type="checkbox"
           className="mt-1"
@@ -99,7 +99,7 @@ export function FuncionarioCamposEscala({
       </label>
 
       {!valor.coringa && (
-        <label className="flex flex-col gap-1 text-sm text-black dark:text-zinc-50">
+        <label className="flex flex-col gap-1 text-sm text-text">
           Turno de casa
           <select
             value={valor.turnoPadraoId}
@@ -120,7 +120,7 @@ export function FuncionarioCamposEscala({
         </label>
       )}
 
-      <fieldset className="flex flex-col gap-1.5 text-sm text-black dark:text-zinc-50">
+      <fieldset className="flex flex-col gap-1.5 text-sm text-text">
         <legend className="mb-1">
           {valor.coringa ? "Turnos que este coringa cobre" : "Também pode cobrir (opcional)"}
         </legend>
@@ -149,7 +149,7 @@ export function FuncionarioCamposEscala({
         </span>
       </fieldset>
 
-      <fieldset className="flex flex-col gap-1.5 text-sm text-black dark:text-zinc-50">
+      <fieldset className="flex flex-col gap-1.5 text-sm text-text">
         <legend className="mb-1">Nunca trabalha em (opcional)</legend>
         <div className="flex flex-wrap gap-1.5">
           {DIAS.map((nome, dia) => {
@@ -161,10 +161,10 @@ export function FuncionarioCamposEscala({
                 aria-pressed={marcado}
                 onClick={() => alternarDia(dia)}
                 className={
-                  "border-2 border-black px-2.5 py-1 text-xs font-bold uppercase tracking-wide transition-colors " +
+                  "rounded-md border border-border px-2.5 py-1 text-xs font-bold uppercase tracking-wide transition-colors " +
                   (marcado
-                    ? "bg-red-600 text-white"
-                    : "bg-white text-black hover:bg-zinc-100 dark:bg-zinc-900 dark:text-white")
+                    ? "bg-primary text-white"
+                    : "bg-card text-text hover:bg-text/5")
                 }
               >
                 {nome}
