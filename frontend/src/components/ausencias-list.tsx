@@ -40,10 +40,6 @@ export function AusenciasList({
           <h1 className="text-2xl font-semibold text-text">
             Ausências
           </h1>
-          <p className="text-sm text-zinc-500 dark:text-zinc-400">
-            Faltas, atestados e licenças — a geração e a validação de
-            escala nunca alocam alguém nesses períodos (RN02)
-          </p>
         </div>
         <button
           type="button"

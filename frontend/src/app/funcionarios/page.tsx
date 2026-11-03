@@ -36,8 +36,8 @@ type Funcionario = {
 export default async function FuncionariosPage() {
   const [funcionarios, turnos, postos] = await Promise.all([
     apiGet<Funcionario[]>("/funcionarios"),
-    apiGet<Turno[]>("/turnos"),
-    apiGet<Posto[]>("/postos"),
+    apiGet<Turno[]>("/turnos/opcoes"),
+    apiGet<Posto[]>("/postos/opcoes"),
   ]);
 
   return (

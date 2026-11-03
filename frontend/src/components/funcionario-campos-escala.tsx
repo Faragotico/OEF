@@ -51,9 +51,13 @@ export function FuncionarioCamposEscala({
   valor: CamposEscala;
   onChange: (proximo: CamposEscala) => void;
 }) {
+  // Sem posto escolhido não há grade pra mostrar: turno pertence a um
+  // posto, e a geração automática monta a escala com a equipe de UM
+  // posto. (Turno avulso, sem posto, só nasce do "horário
+  // personalizado" da tela de Alocação — não entra neste formulário.)
   const turnosDoPosto = postoId
     ? turnos.filter((t) => t.postoId === Number(postoId))
-    : turnos.filter((t) => t.postoId !== null);
+    : [];
 
   const alternarHabilitacao = (turnoId: number) =>
     onChange({
@@ -94,7 +98,7 @@ export function FuncionarioCamposEscala({
           }
         />
         <span>
-          É coringa (sem horário de casa; cobre os turnos em que estiver habilitado)
+          É coringa (sem horário de casa)
         </span>
       </label>
 
@@ -104,7 +108,8 @@ export function FuncionarioCamposEscala({
           <select
             value={valor.turnoPadraoId}
             onChange={(e) => onChange({ ...valor, turnoPadraoId: e.target.value })}
-            className={inputClass}
+            disabled={!postoId}
+            className={inputClass + " disabled:opacity-60"}
           >
             <option value="">Sem turno de casa</option>
             {turnosDoPosto.map((t) => (
@@ -113,10 +118,7 @@ export function FuncionarioCamposEscala({
               </option>
             ))}
           </select>
-          <span className="text-xs text-zinc-500 dark:text-zinc-400">
-            Por padrão a geração só escala esta pessoa neste horário — é o que as
-            escalas reais mostram, cada um no mesmo turno o mês inteiro.
-          </span>
+          <span className="text-xs text-zinc-500 dark:text-zinc-400">Horário em que a geração escala esta pessoa.</span>
         </label>
       )}
 
@@ -126,10 +128,12 @@ export function FuncionarioCamposEscala({
         </legend>
         {turnosDoPosto.length === 0 ? (
           <p className="text-xs text-zinc-500 dark:text-zinc-400">
-            Escolha um posto acima pra ver a grade de horários dele.
+            {postoId
+              ? "Este posto ainda não tem turnos cadastrados. Cadastre em Turnos."
+              : "Escolha um posto acima pra ver a grade de horários dele."}
           </p>
         ) : (
-          <div className="grid grid-cols-1 gap-1 sm:grid-cols-2">
+          <div className="grid max-h-56 grid-cols-1 gap-1 overflow-y-auto pr-1 sm:grid-cols-2">
             {turnosDoPosto.map((t) => (
               <label key={t.id} className="flex items-center gap-2 text-sm">
                 <input
@@ -144,8 +148,8 @@ export function FuncionarioCamposEscala({
         )}
         <span className="text-xs text-zinc-500 dark:text-zinc-400">
           {valor.coringa
-            ? "Um coringa precisa de pelo menos um turno marcado — sem nenhum, o cadastro fica incompleto e ele não entra na geração."
-            : "Só usado quando o gestor liga “deixar titular cobrir turno que não é o dele” na tela de geração."}
+            ? "Coringa precisa de pelo menos um turno."
+            : "Vale só se a geração permitir cobrir outro turno."}
         </span>
       </fieldset>
 
@@ -172,10 +176,6 @@ export function FuncionarioCamposEscala({
             );
           })}
         </div>
-        <span className="text-xs text-zinc-500 dark:text-zinc-400">
-          Caso real dos quadros do cliente: há funcionário que nunca trabalha domingo.
-          Até aqui isso só existia como ajuste manual depois de gerar.
-        </span>
       </fieldset>
     </>
   );

@@ -81,7 +81,7 @@ export default async function EscalaDetalhePage({
   const [funcionarios, turnos, regras, alocacoesDaEscala] = await Promise.all([
     apiGet<Funcionario[]>("/funcionarios"),
     // Só os turnos DESTE posto (antes vinha todo turno do sistema).
-    apiGet<Turno[]>(`/turnos?postoId=${escala.postoId}`),
+    apiGet<Turno[]>(`/turnos/opcoes?postoId=${escala.postoId}`),
     apiGet<Regra[]>("/regras"),
     buscarTodasAlocacoesDaEscala(Number(id)),
   ]);
@@ -144,11 +144,7 @@ export default async function EscalaDetalhePage({
         </div>
 
         {funcionariosDaEscala.length === 0 ? (
-          <p className="text-sm text-zinc-500 dark:text-zinc-400">
-            Nenhum funcionário para mostrar: esta escala não tem alocações
-            e não há funcionário ativo vinculado a este posto. Vincule a
-            equipe ao posto no cadastro de funcionários.
-          </p>
+          <p className="text-sm text-zinc-500 dark:text-zinc-400">Nenhum funcionário para mostrar. Vincule a equipe ao posto no cadastro de funcionários.</p>
         ) : (
           <EscalaGrid
             dataInicio={escala.dataInic}

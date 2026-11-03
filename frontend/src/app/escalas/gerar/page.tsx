@@ -26,10 +26,10 @@ type Funcionario = {
 
 export default async function GerarEscalaPage() {
   const [postos, regras, funcionarios, turnos] = await Promise.all([
-    apiGet<Posto[]>("/postos"),
+    apiGet<Posto[]>("/postos/opcoes"),
     apiGet<Regra[]>("/regras"),
     apiGet<Funcionario[]>("/funcionarios"),
-    apiGet<Turno[]>("/turnos"),
+    apiGet<Turno[]>("/turnos/opcoes"),
   ]);
 
   const regrasEscala = regras.filter((r) => r.tipo === "escala");
@@ -58,15 +58,7 @@ export default async function GerarEscalaPage() {
             folga" — que descrevia o ALGORITMO. Agora descreve o que o
             gestor precisa entender pra usar a tela: o posto pede
             cobertura, o sistema decide quem cobre, e quem sobra folga. */}
-        <p className="mb-6 text-sm leading-relaxed text-zinc-600 dark:text-zinc-400">
-          Cada posto tem uma grade de horários: quais turnos ele abre e de quanta gente
-          precisa em cada dia da semana. O sistema preenche essa grade com a equipe,
-          respeitando as regras trabalhistas (carga semanal, intervalo entre jornadas,
-          dias seguidos, descanso semanal) — e quem não ficar com nenhuma vaga no dia
-          está de folga. Use <strong>Simular</strong> pra ver o resultado sem salvar:
-          dá pra comparar padrões de rodízio, ou ver o efeito de reduzir a demanda de
-          domingo, antes de decidir.
-        </p>
+        <p className="mb-6 text-sm leading-relaxed text-zinc-600 dark:text-zinc-400">Use <strong>Simular</strong> para ver o resultado sem salvar.</p>
 
         <GerarEscalaForm
           postos={postos}

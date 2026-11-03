@@ -293,11 +293,7 @@ export function EscalaGrid({
 
   return (
     <div className="flex flex-col gap-2">
-      <p className="text-xs text-zinc-500 dark:text-zinc-400">
-        Clique numa célula pra alterar manualmente (folga, turno diferente ou
-        cobertura). A validação das regras trabalhistas pode ser refeita
-        depois em &quot;Validar escala&quot;.
-      </p>
+      <p className="text-xs text-zinc-500 dark:text-zinc-400">Clique numa célula para alterar manualmente.</p>
 
       {erroCelula && (
         <p className="rounded-lg bg-danger px-3 py-2 text-sm font-medium text-white">

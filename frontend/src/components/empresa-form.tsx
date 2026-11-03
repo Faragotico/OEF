@@ -75,6 +75,7 @@ export function EmpresaForm({
           required
           minLength={3}
           maxLength={100}
+          placeholder="Ex.: Supermercado Boa Safra Ltda"
           value={form.nome}
           onChange={(e) => setForm({ ...form, nome: e.target.value })}
           className={inputClass}

@@ -25,9 +25,6 @@ export default async function EscalasPage() {
             <h1 className="text-2xl font-semibold text-text">
               Escalas
             </h1>
-            <p className="text-sm text-zinc-500 dark:text-zinc-400">
-              Cada escala gerada fica guardada aqui, separada por posto e período
-            </p>
           </div>
           <Link
             href="/escalas/gerar"

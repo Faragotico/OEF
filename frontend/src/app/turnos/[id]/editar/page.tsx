@@ -19,7 +19,7 @@ export default async function EditarTurnoPage({
   const { id } = await params;
   const [turno, postos] = await Promise.all([
     apiGet<Turno>(`/turnos/${id}`),
-    apiGet<Posto[]>("/postos"),
+    apiGet<Posto[]>("/postos/opcoes"),
   ]);
 
   return (

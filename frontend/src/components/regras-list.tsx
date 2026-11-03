@@ -24,7 +24,7 @@ const TIPOS_GLOBAIS = [
   {
     chave: "carga_horaria_semanal",
     label: "Carga horária semanal máxima",
-    ajuda: "Define o limite de horas que um funcionário pode trabalhar de segunda a domingo. Conforme a CLT, o padrão é de 44 horas semanais.",
+    ajuda: "Limite de horas por semana. Padrão CLT: 44 h.",
     descricaoSugerida: "Carga horária semanal máxima de 44 horas",
     valorPadrao: "44",
     unidade: "h",
@@ -32,7 +32,7 @@ const TIPOS_GLOBAIS = [
   {
     chave: "intervalo_interjornada",
     label: "Intervalo mínimo entre jornadas",
-    ajuda: "Define o período mínimo de descanso, em horas, entre o fim de uma jornada e o início da próxima. Conforme a CLT, o padrão é de 11 horas.",
+    ajuda: "Descanso mínimo entre o fim de uma jornada e o início da próxima. Padrão CLT: 11 h.",
     descricaoSugerida: "Intervalo mínimo entre jornadas de 11 horas",
     valorPadrao: "11",
     unidade: "h",
@@ -40,7 +40,7 @@ const TIPOS_GLOBAIS = [
   {
     chave: "intervalo_intrajornada",
     label: "Intervalo intrajornada (pausa durante o turno)",
-    ajuda: "Define o período de pausa durante a jornada, como 1 hora de almoço em um turno de 8 horas. Esse período não é contabilizado como hora trabalhada e é descontado do total de horas antes da verificação do limite semanal, inclusive nos totais de horas exibidos no sistema.",
+    ajuda: "Pausa durante a jornada (ex.: almoço), descontada das horas trabalhadas.",
     descricaoSugerida: "Intervalo intrajornada de 1 hora",
     valorPadrao: "1",
     unidade: "h",
@@ -127,9 +127,6 @@ export function RegrasList({ regras }: { regras: Regra[] }) {
     <>
       <div className="mb-6">
         <h1 className="text-2xl font-semibold text-text">Regras Trabalhistas</h1>
-        <p className="text-sm text-text-secondary">
-          Regras da CLT aplicadas na geração automática de escalas
-        </p>
       </div>
 
       {/* Configurações gerais — valem pro sistema inteiro, sem
@@ -155,12 +152,7 @@ export function RegrasList({ regras }: { regras: Regra[] }) {
           <div className="flex flex-col gap-3 rounded-lg border border-border bg-card p-4">
             <div>
               <span className="font-semibold text-text">Rodízio padrão</span>
-              <p className="mt-1 text-xs text-text-secondary">
-                Padrão utilizado na geração das escalas quando nenhum outro é
-                selecionado. Diferente das regras apresentadas ao lado, este não é
-                um limite legal, mas uma escolha entre os padrões cadastrados em
-                &quot;Padrões de rodízio de escala&quot;.
-              </p>
+              <p className="mt-1 text-xs text-text-secondary">Usado quando nenhum padrão é escolhido na geração.</p>
             </div>
             <div className="mt-1 flex items-center justify-between">
               <span className="rounded-md bg-primary/10 px-2 py-1 text-sm font-semibold text-primary">
@@ -219,12 +211,7 @@ export function RegrasList({ regras }: { regras: Regra[] }) {
             );
           })}
         </div>
-        <p className="mt-3 rounded-lg border border-border bg-text/5 px-3 py-2 text-xs text-text-secondary">
-          O Descanso Semanal Remunerado não aparece entre as configurações porque
-          possui um limite legal fixo. A legislação estabelece o direito ao
-          descanso após, no máximo, 6 dias consecutivos de trabalho, não sendo
-          possível cadastrar um valor diferente para essa regra.
-        </p>
+        <p className="mt-3 rounded-lg border border-border bg-text/5 px-3 py-2 text-xs text-text-secondary">Descanso Semanal Remunerado: limite legal fixo de 6 dias seguidos, não configurável.</p>
       </section>
 
       {/* Padrões de rodízio — aqui sim pode ter vários (5x1, 6x1...),
@@ -312,11 +299,7 @@ export function RegrasList({ regras }: { regras: Regra[] }) {
       {antigas.length > 0 && (
         <section className="mt-8">
           <h2 className="mb-2 text-lg font-semibold text-text">Regras antigas</h2>
-          <p className="mb-2 text-xs text-text-secondary">
-            Tipos que existiam antes deste rework e nunca tiveram
-            efeito nenhum na geração ou validação de escalas. Não é
-            possível editá-las — só excluir.
-          </p>
+          <p className="mb-2 text-xs text-text-secondary">Sem efeito na geração. Só podem ser excluídas.</p>
           <div className="overflow-x-auto rounded-lg border border-border bg-card">
             <table className="w-full border-collapse text-left text-sm">
               <thead className="border-b border-border bg-card">

@@ -14,8 +14,8 @@ type Posto = { id: number; nome: string; localizacao: string };
 // precisa de estado e eventos, mora no client component abaixo).
 export default async function NovoFuncionarioPage() {
   const [turnos, postos] = await Promise.all([
-    apiGet<Turno[]>("/turnos"),
-    apiGet<Posto[]>("/postos"),
+    apiGet<Turno[]>("/turnos/opcoes"),
+    apiGet<Posto[]>("/postos/opcoes"),
   ]);
 
   return (

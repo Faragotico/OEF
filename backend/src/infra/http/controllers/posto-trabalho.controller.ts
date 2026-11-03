@@ -7,10 +7,12 @@ import {
   ParseIntPipe,
   Patch,
   Post,
+  Query,
 } from '@nestjs/common';
 import { PostoTrabalhoService } from 'src/domain/services/posto-trabalho.service';
 import { CreatePostoTrabalhoDto } from '../dtos/posto-trabalho/create-posto-trabalho.dto';
 import { UpdatePostoTrabalhoDto } from '../dtos/posto-trabalho/update-posto-trabalho.dto';
+import { FindPostosQueryDto } from '../dtos/posto-trabalho/find-postos-query.dto';
 
 // O controller é a PORTA DE ENTRADA HTTP. O trabalho dele é só:
 // receber a requisição, extrair os dados, e chamar o service.
@@ -26,8 +28,17 @@ export class PostoTrabalhoController {
     return this.service.create(dto);
   }
 
-  @Get() // GET /postos
-  findAll() {
+  // Lista paginada + filtros: GET /postos?busca=centro&empresaId=3&page=2
+  @Get()
+  findAll(@Query() query: FindPostosQueryDto) {
+    return this.service.findAllPaginado(query);
+  }
+
+  // Lista COMPLETA (sem paginar), só pra preencher dropdowns (turnos,
+  // funcionários, gerar escala). Precisa vir ANTES de @Get(':id'),
+  // senão o Nest trataria "opcoes" como um id.
+  @Get('opcoes')
+  opcoes() {
     return this.service.findAll();
   }
 

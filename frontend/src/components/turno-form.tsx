@@ -116,10 +116,7 @@ export function TurnoForm({
           />
         </label>
       </div>
-      <p className="-mt-2 text-xs text-zinc-500 dark:text-zinc-400">
-        O fim precisa ser depois do início — este sistema não tem turno que atravessa a
-        meia-noite.
-      </p>
+      <p className="-mt-2 text-xs text-zinc-500 dark:text-zinc-400">O fim deve ser depois do início.</p>
 
       <label className="flex flex-col gap-1 text-sm text-text">
         Posto de trabalho
@@ -135,11 +132,6 @@ export function TurnoForm({
             </option>
           ))}
         </select>
-        <span className="text-xs text-zinc-500 dark:text-zinc-400">
-          A geração automática monta a escala a partir dos turnos do posto. Um turno
-          pode existir sem ser o horário de casa de ninguém — quem estiver disponível
-          cobre.
-        </span>
       </label>
 
       {form.postoId && (
@@ -171,15 +163,7 @@ export function TurnoForm({
               );
             })}
           </div>
-          <p className="text-xs text-zinc-500 dark:text-zinc-400">
-            Quem não ficar com nenhuma vaga no dia está de folga — então tirar este
-            turno do domingo é o jeito mais direto de dar domingo de folga pra mais gente.{" "}
-            <strong>
-              Pra cobrir um horário de pico (ex: 11h–14h com mais gente que o normal),
-              cadastre outro turno com horário próprio que se sobreponha a este — não é
-              aqui que se aumenta quantidade.
-            </strong>
-          </p>
+          <p className="text-xs text-zinc-500 dark:text-zinc-400">Sem turno no domingo = mais gente de folga. Para cobrir um pico, cadastre outro turno com horário próprio.</p>
         </fieldset>
       )}
 

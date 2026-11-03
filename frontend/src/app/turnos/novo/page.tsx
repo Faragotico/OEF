@@ -6,7 +6,7 @@ type Posto = { id: number; nome: string; localizacao: string };
 export default async function NovoTurnoPage() {
   // O turno agora pertence a um posto (é a grade de horários dele),
   // então a lista de postos precisa vir junto pro formulário.
-  const postos = await apiGet<Posto[]>("/postos");
+  const postos = await apiGet<Posto[]>("/postos/opcoes");
 
   return (
     <main className="min-h-screen bg-background px-8 py-8">

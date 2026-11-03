@@ -29,6 +29,32 @@ export class TurnoRepository {
     });
   }
 
+  // Quantos turnos por página. O corte acontece no banco.
+  static readonly POR_PAGINA = 10;
+
+  async findAllPaginado(
+    where: Prisma.TurnoWhereInput,
+    page: number,
+  ): Promise<{ data: Turno[]; total: number }> {
+    const take = TurnoRepository.POR_PAGINA;
+    const skip = (page - 1) * take;
+
+    // Página + total saem juntos, com o MESMO where.
+    const [data, total] = await this.prisma.$transaction([
+      this.prisma.turno.findMany({
+        where,
+        // `id` desempata turnos com mesmo posto e horário.
+        orderBy: [{ postoId: 'asc' }, { horaInicio: 'asc' }, { id: 'asc' }],
+        include: this.include,
+        skip,
+        take,
+      }),
+      this.prisma.turno.count({ where }),
+    ]);
+
+    return { data, total };
+  }
+
   /** A grade de horários de um posto — a entrada do motor de escala. */
   findByPosto(postoId: number): Promise<Turno[]> {
     return this.prisma.turno.findMany({

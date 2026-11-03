@@ -24,6 +24,32 @@ export class PostoTrabalhoRepository {
     });
   }
 
+  // Quantos postos por página. O corte acontece no banco.
+  static readonly POR_PAGINA = 10;
+
+  async findAllPaginado(
+    where: Prisma.PostoTrabalhoWhereInput,
+    page: number,
+  ): Promise<{ data: PostoTrabalho[]; total: number }> {
+    const take = PostoTrabalhoRepository.POR_PAGINA;
+    const skip = (page - 1) * take;
+
+    // Página + total saem juntos, com o MESMO where.
+    const [data, total] = await this.prisma.$transaction([
+      this.prisma.postoTrabalho.findMany({
+        where,
+        // `id` desempata nomes iguais (podem repetir entre empresas).
+        orderBy: [{ nome: 'asc' }, { id: 'asc' }],
+        include: this.include,
+        skip,
+        take,
+      }),
+      this.prisma.postoTrabalho.count({ where }),
+    ]);
+
+    return { data, total };
+  }
+
   findById(id: number): Promise<PostoTrabalho | null> {
     return this.prisma.postoTrabalho.findUnique({
       where: { id },

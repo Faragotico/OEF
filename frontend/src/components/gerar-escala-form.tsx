@@ -462,11 +462,6 @@ export function GerarEscalaForm({
                 </tbody>
               </table>
             </div>
-            <p className="border-t border-zinc-200 px-3 py-2 text-[11px] text-zinc-500 dark:border-zinc-800 dark:text-zinc-400">
-              Quem não ficar com nenhuma vaga no dia está de folga. Fechar um turno no
-              domingo é o jeito mais direto de dar domingo de folga pra mais gente — edite
-              na tela Turnos.
-            </p>
           </div>
         ) : (
           <p className="rounded-lg bg-danger px-3 py-2 text-sm font-medium text-white">
@@ -567,11 +562,7 @@ export function GerarEscalaForm({
           />
           <span>
             Deixar um titular cobrir turno que não é o dele
-            <span className="block text-xs text-zinc-500 dark:text-zinc-400">
-              Desligado, cada pessoa fica no mesmo horário o mês inteiro (é o que as
-              escalas reais mostram). Ligado, o motor tem muito mais saída — em especial
-              pra dar domingo de folga pra todo mundo —, mas o horário de cada um varia.
-            </span>
+            <span className="block text-xs text-zinc-500 dark:text-zinc-400">Desligado, cada pessoa fica no mesmo horário o mês inteiro.</span>
           </span>
         </label>
 
@@ -688,9 +679,7 @@ export function GerarEscalaForm({
 
           {resultado.feriadosNoPeriodo.length > 0 && (
             <div className="rounded-lg border border-border bg-text/5 px-4 py-3 text-sm text-text-secondary">
-              Feriado(s) no período (o posto não abre por padrão, e ninguém foi
-              escalado): {resultado.feriadosNoPeriodo.join(", ")}. Edite a alocação
-              manualmente se precisar manter cobertura em algum deles.
+              Feriado(s) no período (sem escala): {resultado.feriadosNoPeriodo.join(", ")}.
             </div>
           )}
 

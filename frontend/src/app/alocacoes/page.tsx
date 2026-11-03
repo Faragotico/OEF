@@ -70,7 +70,7 @@ export default async function AlocacoesPage({
   const [alocacoes, funcionarios, turnos, escalas] = await Promise.all([
     apiGet<AlocacoesPaginadas>(`/alocacoes${paraQueryString(params)}`),
     apiGet<Funcionario[]>("/funcionarios"),
-    apiGet<Turno[]>("/turnos"),
+    apiGet<Turno[]>("/turnos/opcoes"),
     apiGet<Escala[]>("/escalas"),
   ]);
 
@@ -81,10 +81,6 @@ export default async function AlocacoesPage({
           <h1 className="text-2xl font-semibold text-text">
             Alocações
           </h1>
-          <p className="text-sm text-zinc-500 dark:text-zinc-400">
-            Use os filtros abaixo pra encontrar o que precisa — a lista
-            não carrega tudo de uma vez, só a página filtrada.
-          </p>
         </div>
 
         <AlocacoesFilter

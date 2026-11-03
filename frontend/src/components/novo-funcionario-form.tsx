@@ -88,6 +88,7 @@ export function NovoFuncionarioForm({
           required
           minLength={3}
           maxLength={100}
+          placeholder="Ex.: Maria Silva Santos"
           value={form.nome}
           onChange={(e) => setForm({ ...form, nome: e.target.value })}
           className={inputClass}
@@ -100,6 +101,7 @@ export function NovoFuncionarioForm({
           required
           inputMode="numeric"
           maxLength={11}
+          placeholder="Ex.: 39284105714"
           value={form.cpf}
           onChange={(e) => setForm({ ...form, cpf: e.target.value.replace(/\D/g, "") })}
           className={inputClass}
@@ -131,6 +133,7 @@ export function NovoFuncionarioForm({
           required
           minLength={2}
           maxLength={80}
+          placeholder="Ex.: Operadora de Caixa"
           value={form.cargo}
           onChange={(e) => setForm({ ...form, cargo: e.target.value })}
           className={inputClass}
@@ -144,6 +147,7 @@ export function NovoFuncionarioForm({
           required
           min={1}
           max={168}
+          placeholder="Ex.: 44"
           value={form.cargaHorariaSemanal}
           onChange={(e) =>
             setForm({ ...form, cargaHorariaSemanal: Number(e.target.value) })
@@ -156,14 +160,24 @@ export function NovoFuncionarioForm({
         Posto de trabalho
         <select
           value={form.postoId}
-          onChange={(e) =>
-            // Trocar de posto zera as habilitações: elas apontam pra
-            // turnos do posto anterior, que não existem no novo.
-            {
-              setForm({ ...form, postoId: e.target.value });
-              setEscala({ ...escala, turnoPadraoId: "", turnosHabilitadosIds: [] });
-            }
-          }
+          onChange={(e) => {
+            // Trocar de posto zera turno de casa e habilitações: elas
+            // apontam pra turnos do posto anterior. Coringa já vem
+            // habilitado em toda a grade do posto NOVO (mesma regra de
+            // marcar a caixa de coringa).
+            const novoPostoId = e.target.value;
+            setForm({ ...form, postoId: novoPostoId });
+            setEscala({
+              ...escala,
+              turnoPadraoId: "",
+              turnosHabilitadosIds:
+                escala.coringa && novoPostoId
+                  ? turnos
+                      .filter((t) => t.postoId === Number(novoPostoId))
+                      .map((t) => t.id)
+                  : [],
+            });
+          }}
           className={inputClass}
         >
           <option value="">Sem posto definido</option>
@@ -173,10 +187,6 @@ export function NovoFuncionarioForm({
             </option>
           ))}
         </select>
-        <span className="text-xs text-zinc-500 dark:text-zinc-400">
-          A geração automática monta a escala com a equipe do posto escolhido, usando a
-          grade de horários dele.
-        </span>
       </label>
 
       <FuncionarioCamposEscala

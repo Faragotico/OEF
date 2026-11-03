@@ -1,9 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type FormEvent } from "react";
+import { usePathname, useRouter } from "next/navigation";
 import { DeleteButton } from "@/components/delete-button";
 import { TurnoForm } from "@/components/turno-form";
 import { Modal } from "@/components/modal";
+import { Paginacao } from "@/components/paginacao";
 
 type Turno = {
   id: number;
@@ -18,6 +20,9 @@ type Turno = {
 type Posto = { id: number; nome: string; localizacao: string };
 
 type EstadoModal = { modo: "novo" } | { modo: "editar"; turno: Turno } | null;
+
+const inputClass =
+  "rounded-md border border-border bg-card px-3 py-2 text-sm text-text";
 
 const DIAS = ["dom", "seg", "ter", "qua", "qui", "sex", "sáb"];
 
@@ -47,22 +52,56 @@ function MiniDemanda({ demanda }: { demanda: number[] }) {
   );
 }
 
-export function TurnosList({ turnos, postos }: { turnos: Turno[]; postos: Posto[] }) {
+// Recebe a página já filtrada pelo backend; busca, filtro de posto e
+// troca de página navegam pra uma nova URL (?busca=...&postoId=...&page=...).
+export function TurnosList({
+  turnos,
+  total,
+  page,
+  totalPaginas,
+  postos,
+  buscaAtual,
+  postoIdAtual,
+}: {
+  turnos: Turno[];
+  total: number;
+  page: number;
+  totalPaginas: number;
+  postos: Posto[];
+  buscaAtual: string;
+  postoIdAtual: string;
+}) {
+  const router = useRouter();
+  const pathname = usePathname();
   const [modal, setModal] = useState<EstadoModal>(null);
+  const [busca, setBusca] = useState(buscaAtual);
+  const filtrosAtivos = !!buscaAtual || !!postoIdAtual;
+
+  function navegar(p: { busca?: string; postoId?: string; page?: number }) {
+    const qs = new URLSearchParams();
+    if (p.busca) qs.set("busca", p.busca);
+    if (p.postoId) qs.set("postoId", p.postoId);
+    if (p.page && p.page > 1) qs.set("page", String(p.page));
+    const texto = qs.toString();
+    router.push(texto ? `${pathname}?${texto}` : pathname);
+  }
+
+  // Mudar filtro sempre volta pra página 1.
+  function buscar(e: FormEvent) {
+    e.preventDefault();
+    navegar({ busca: busca.trim(), postoId: postoIdAtual });
+  }
+
+  function limpar() {
+    setBusca("");
+    router.push(pathname);
+  }
 
   return (
     <>
       <div className="mb-6 flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-semibold text-text">Turnos</h1>
-          {/* A tela mudou de papel: deixou de ser "uma lista de horários
-              que existem" e passou a ser onde a grade de cada posto é
-              definida. A escala sai daqui. */}
-          <p className="text-sm text-zinc-500 dark:text-zinc-400">
-            A grade de horários de cada posto — quais turnos abrem e de quanta gente
-            precisam em cada dia da semana. É daqui que a geração automática monta a
-            escala.
-          </p>
         </div>
         <button
           type="button"
@@ -71,6 +110,51 @@ export function TurnosList({ turnos, postos }: { turnos: Turno[]; postos: Posto[
         >
           + Novo Turno
         </button>
+      </div>
+
+      <form onSubmit={buscar} className="mb-4 flex flex-wrap items-center gap-2">
+        <input
+          type="search"
+          value={busca}
+          onChange={(e) => setBusca(e.target.value)}
+          placeholder="Buscar pela descrição do turno"
+          className={`min-w-64 flex-1 ${inputClass}`}
+        />
+        <select
+          value={postoIdAtual}
+          onChange={(e) =>
+            navegar({ busca: busca.trim(), postoId: e.target.value })
+          }
+          className={inputClass}
+          aria-label="Filtrar por posto"
+        >
+          <option value="">Todos os postos</option>
+          {postos.map((p) => (
+            <option key={p.id} value={p.id}>
+              {p.nome}
+            </option>
+          ))}
+        </select>
+        <button
+          type="submit"
+          className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-primary-hover"
+        >
+          Buscar
+        </button>
+        {filtrosAtivos && (
+          <button
+            type="button"
+            onClick={limpar}
+            className="rounded-lg border border-border bg-card px-3 py-2 text-sm font-semibold text-text transition-colors hover:bg-text/5"
+          >
+            Limpar
+          </button>
+        )}
+      </form>
+
+      <div className="mb-3 text-sm text-zinc-600 dark:text-zinc-400">
+        {total} turno{total === 1 ? "" : "s"}
+        {total > 0 && ` · página ${page} de ${totalPaginas}`}
       </div>
 
       <div className="overflow-x-auto rounded-lg border border-border bg-card">
@@ -129,13 +213,23 @@ export function TurnosList({ turnos, postos }: { turnos: Turno[]; postos: Posto[
                   colSpan={5}
                   className="px-4 py-6 text-center text-zinc-500 dark:text-zinc-400"
                 >
-                  Nenhum turno cadastrado.
+                  {filtrosAtivos
+                    ? "Nenhum turno encontrado com esses filtros."
+                    : "Nenhum turno cadastrado."}
                 </td>
               </tr>
             )}
           </tbody>
         </table>
       </div>
+
+      <Paginacao
+        page={page}
+        totalPaginas={totalPaginas}
+        onChange={(p) =>
+          navegar({ busca: buscaAtual, postoId: postoIdAtual, page: p })
+        }
+      />
 
       {modal && (
         <Modal

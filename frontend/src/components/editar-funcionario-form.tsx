@@ -106,6 +106,7 @@ export function EditarFuncionarioForm({
           required
           minLength={3}
           maxLength={100}
+          placeholder="Ex.: Maria Silva Santos"
           value={form.nome}
           onChange={(e) => setForm({ ...form, nome: e.target.value })}
           className={inputClass}
@@ -141,6 +142,7 @@ export function EditarFuncionarioForm({
           required
           minLength={2}
           maxLength={80}
+          placeholder="Ex.: Operadora de Caixa"
           value={form.cargo}
           onChange={(e) => setForm({ ...form, cargo: e.target.value })}
           className={inputClass}
@@ -154,6 +156,7 @@ export function EditarFuncionarioForm({
           required
           min={1}
           max={168}
+          placeholder="Ex.: 44"
           value={form.cargaHorariaSemanal}
           onChange={(e) =>
             setForm({ ...form, cargaHorariaSemanal: Number(e.target.value) })
@@ -169,8 +172,20 @@ export function EditarFuncionarioForm({
           onChange={(e) => {
             // Trocar de posto zera turno de casa e habilitações: elas
             // apontam pra turnos que não existem na grade do novo posto.
-            setForm({ ...form, postoId: e.target.value });
-            setEscala({ ...escala, turnoPadraoId: "", turnosHabilitadosIds: [] });
+            // Coringa já vem habilitado em toda a grade do posto NOVO
+            // (mesma regra de marcar a caixa de coringa).
+            const novoPostoId = e.target.value;
+            setForm({ ...form, postoId: novoPostoId });
+            setEscala({
+              ...escala,
+              turnoPadraoId: "",
+              turnosHabilitadosIds:
+                escala.coringa && novoPostoId
+                  ? turnos
+                      .filter((t) => t.postoId === Number(novoPostoId))
+                      .map((t) => t.id)
+                  : [],
+            });
           }}
           className={inputClass}
         >

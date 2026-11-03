@@ -7,6 +7,7 @@ import { Prisma } from '@prisma/client';
 import { PostoTrabalhoRepository } from '../repositories/posto-trabalho.repository';
 import { CreatePostoTrabalhoDto } from 'src/infra/http/dtos/posto-trabalho/create-posto-trabalho.dto';
 import { UpdatePostoTrabalhoDto } from 'src/infra/http/dtos/posto-trabalho/update-posto-trabalho.dto';
+import { FindPostosQueryDto } from 'src/infra/http/dtos/posto-trabalho/find-postos-query.dto';
 
 // O service é o CÉREBRO: aplica as regras de negócio e decide o que fazer.
 // Não sabe o que é requisição HTTP (isso é do controller) nem como o banco
@@ -42,6 +43,37 @@ export class PostoTrabalhoService {
 
   findAll() {
     return this.repository.findAll();
+  }
+
+  // Monta o filtro (where do Prisma) a partir da query string e busca
+  // só a página pedida — ver PostoTrabalhoRepository.findAllPaginado.
+  async findAllPaginado(query: FindPostosQueryDto) {
+    const page = query.page ?? 1;
+    const busca = query.busca?.trim();
+
+    const where: Prisma.PostoTrabalhoWhereInput = {};
+
+    if (query.empresaId !== undefined) {
+      where.empresaId = query.empresaId;
+    }
+    if (busca) {
+      where.OR = [
+        { nome: { contains: busca, mode: 'insensitive' } },
+        { localizacao: { contains: busca, mode: 'insensitive' } },
+      ];
+    }
+
+    const { data, total } = await this.repository.findAllPaginado(where, page);
+
+    return {
+      data,
+      total,
+      page,
+      totalPaginas: Math.max(
+        1,
+        Math.ceil(total / PostoTrabalhoRepository.POR_PAGINA),
+      ),
+    };
   }
 
   /**

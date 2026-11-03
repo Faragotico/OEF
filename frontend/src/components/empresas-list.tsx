@@ -5,6 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { DeleteButton } from "@/components/delete-button";
 import { EmpresaForm } from "@/components/empresa-form";
 import { Modal } from "@/components/modal";
+import { Paginacao } from "@/components/paginacao";
 
 type Empresa = {
   id: number;
@@ -70,9 +71,6 @@ export function EmpresasList({
           <h1 className="text-2xl font-semibold text-text">
             Empresas
           </h1>
-          <p className="text-sm text-zinc-500 dark:text-zinc-400">
-            Empresas contratantes atendidas pela Sharon Pontes
-          </p>
         </div>
         <button
           type="button"
@@ -165,29 +163,11 @@ export function EmpresasList({
         </table>
       </div>
 
-      {totalPaginas > 1 && (
-        <div className="mt-4 flex items-center justify-center gap-3 text-sm text-text">
-          <button
-            type="button"
-            disabled={page <= 1}
-            onClick={() => navegar({ busca: buscaAtual, page: page - 1 })}
-            className="rounded-lg border border-border bg-card px-3 py-1.5 text-xs font-semibold transition-colors hover:bg-text/5 disabled:opacity-40 disabled:hover:bg-card"
-          >
-            ← Anterior
-          </button>
-          <span>
-            Página {page} de {totalPaginas}
-          </span>
-          <button
-            type="button"
-            disabled={page >= totalPaginas}
-            onClick={() => navegar({ busca: buscaAtual, page: page + 1 })}
-            className="rounded-lg border border-border bg-card px-3 py-1.5 text-xs font-semibold transition-colors hover:bg-text/5 disabled:opacity-40 disabled:hover:bg-card"
-          >
-            Próxima →
-          </button>
-        </div>
-      )}
+      <Paginacao
+        page={page}
+        totalPaginas={totalPaginas}
+        onChange={(p) => navegar({ busca: buscaAtual, page: p })}
+      />
 
       {modal && (
         <Modal

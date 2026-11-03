@@ -81,6 +81,7 @@ export default function LoginPage() {
               autoComplete="username"
               required
               autoFocus
+              placeholder="nome@empresa.com.br"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               className={inputClass}

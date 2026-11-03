@@ -32,8 +32,8 @@ export default async function EditarFuncionarioPage({
   const { id } = await params;
   const [funcionario, turnos, postos] = await Promise.all([
     apiGet<Funcionario>(`/funcionarios/${id}`),
-    apiGet<Turno[]>("/turnos"),
-    apiGet<Posto[]>("/postos"),
+    apiGet<Turno[]>("/turnos/opcoes"),
+    apiGet<Posto[]>("/postos/opcoes"),
   ]);
 
   return (

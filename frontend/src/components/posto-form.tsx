@@ -76,6 +76,7 @@ export function PostoForm({
           required
           minLength={3}
           maxLength={100}
+          placeholder="Ex.: Loja Centro"
           value={form.nome}
           onChange={(e) => setForm({ ...form, nome: e.target.value })}
           className={inputClass}
@@ -88,6 +89,7 @@ export function PostoForm({
           required
           minLength={3}
           maxLength={150}
+          placeholder="Ex.: Rua Dr. Colares, 320"
           value={form.localizacao}
           onChange={(e) => setForm({ ...form, localizacao: e.target.value })}
           className={inputClass}

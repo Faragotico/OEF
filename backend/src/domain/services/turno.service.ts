@@ -9,6 +9,7 @@ import { TurnoRepository } from '../repositories/turno.repository';
 import { PostoTrabalhoRepository } from '../repositories/posto-trabalho.repository';
 import { CreateTurnoDto } from 'src/infra/http/dtos/turno/create-turno.dto';
 import { UpdateTurnoDto } from 'src/infra/http/dtos/turno/update-turno.dto';
+import { FindTurnosQueryDto } from 'src/infra/http/dtos/turno/find-turnos-query.dto';
 import { parseTime, formatTime } from 'src/helpers/date.helpers';
 
 // Demanda padrão de um turno novo: uma pessoa em cada dia da semana.
@@ -50,6 +51,31 @@ export class TurnoService {
 
   findAll() {
     return this.repository.findAll();
+  }
+
+  // Monta o filtro (where do Prisma) a partir da query string e busca
+  // só a página pedida — ver TurnoRepository.findAllPaginado.
+  async findAllPaginado(query: FindTurnosQueryDto) {
+    const page = query.page ?? 1;
+    const busca = query.busca?.trim();
+
+    const where: Prisma.TurnoWhereInput = {};
+
+    if (query.postoId !== undefined) {
+      where.postoId = query.postoId;
+    }
+    if (busca) {
+      where.descricao = { contains: busca, mode: 'insensitive' };
+    }
+
+    const { data, total } = await this.repository.findAllPaginado(where, page);
+
+    return {
+      data,
+      total,
+      page,
+      totalPaginas: Math.max(1, Math.ceil(total / TurnoRepository.POR_PAGINA)),
+    };
   }
 
   findByPosto(postoId: number) {

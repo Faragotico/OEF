@@ -75,9 +75,6 @@ export function FuncionariosList({
           <h1 className="text-2xl font-semibold text-text">
             Funcionários
           </h1>
-          <p className="text-sm text-zinc-500 dark:text-zinc-400">
-            Gerencie os funcionários e suas configurações de escala
-          </p>
         </div>
         <button
           type="button"
