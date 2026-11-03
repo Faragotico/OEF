@@ -1,0 +1,139 @@
+EMPRESA - NOME
+Mercantil Ponta Grossa Ltda
+Supermercados Campos Gerais S.A.
+Comercial Vila Velha Ltda
+Rede Tropeiro Alimentos
+Distribuidora Pitangui Ltda
+
+EMPRESA - CNPJ
+38472915000172
+51284736000170
+72619384000136
+9F4R2B7T000178
+K3M8Q1X5000125
+
+EMPRESA - CONTATO
+(42) 3224-1850
+(42) 3027-4416
+(42) 3231-9072
+(42) 3219-6385
+(42) 3225-7740
+
+POSTO - NOME
+Loja Oficinas
+Loja Órfãs
+Loja Contorno
+Loja Boa Vista
+Loja Olarias
+
+POSTO - LOCALIZAÇÃO
+Rua Dr. Colares, 320
+Av. Visconde de Mauá, 1020
+Rua Balduíno Taques, 410
+Av. Carlos Cavalcanti, 2150
+Rua Engenheiro Schamber, 780
+
+FUNCIONÁRIO - NOME
+Marina Albuquerque Siqueira
+Rafael Tomaz Bittencourt
+Camila Fernandes Lopes
+Diego Henrique Moraes
+Letícia Andrade Prado
+
+FUNCIONÁRIO - CPF
+39284105714
+51726398455
+14870563207
+82639514709
+70351842608
+
+FUNCIONÁRIO - TELEFONE
+(42) 99811-2047
+(42) 98835-7710
+(42) 99172-4306
+(42) 98404-5593
+(42) 99967-1128
+
+FUNCIONÁRIO - CARGO
+Operadora de Caixa
+Repositor
+Atendente
+Fiscal de Loja
+Auxiliar Administrativo
+
+FUNCIONÁRIO - CARGA HORÁRIA SEMANAL
+44
+40
+36
+30
+20
+
+TURNO - DESCRIÇÃO
+Abertura
+Manhã
+Intermediário
+Tarde
+Fechamento
+
+TURNO - HORA INÍCIO
+06:00
+08:00
+10:00
+12:00
+14:00
+
+TURNO - HORA FIM
+14:00
+16:00
+18:00
+20:00
+22:00
+
+AUSÊNCIA - DATA INÍCIO
+05/10/2026
+13/10/2026
+19/10/2026
+21/10/2026
+03/11/2026
+
+AUSÊNCIA - DATA FIM
+07/10/2026
+13/10/2026
+30/10/2026
+23/10/2026
+05/11/2026
+
+AUSÊNCIA - MOTIVO
+Atestado médico
+Falta justificada
+Férias
+Curso de capacitação
+Licença casamento
+
+AUSÊNCIA - COMPENSAÇÃO
+Reposição de horas no sábado 17/10
+Folga descontada do banco de horas
+Sem compensação necessária
+Horas repostas na semana seguinte
+Compensação em 14/11/2026
+
+REGRA - DESCRIÇÃO
+Escala 5x2: cinco dias trabalhados para dois de folga
+Escala 4x2: quatro dias trabalhados para dois de folga
+Escala 3x1: três dias trabalhados para um de folga
+Escala 6x2: seis dias trabalhados para dois de folga
+Escala 4x3: quatro dias trabalhados para três de folga
+
+REGRA - DIAS TRABALHADOS
+5
+4
+3
+6
+4
+
+REGRA - DIAS DE FOLGA
+2
+2
+1
+2
+3

@@ -9,12 +9,17 @@ o projeto completo (backend + frontend).
 
 ```bash
 pnpm install
-cp .env.example .env      # preencha DATABASE_URL e gere um JWT_SECRET
-pnpm exec prisma migrate dev
-pnpm exec prisma db seed
-pnpm exec ts-node prisma/seed-usuario.ts
+cp .env.example .env      # preencha DATABASE_URL, gere um JWT_SECRET e troque o ADMIN_*
+pnpm exec prisma migrate dev              # cria as tabelas — e já roda o seed de exemplo sozinho
+pnpm exec ts-node prisma/seed-usuario.ts  # cria o usuário de login (lê ADMIN_* do .env)
+pnpm exec ts-node prisma/seed-demo.ts     # opcional — ~500 funcionários pra volume/demonstração
 pnpm run start:dev
 ```
+
+> `migrate dev` já chama `prisma db seed` sozinho depois de aplicar as
+> migrations. Não rode `pnpm exec prisma db seed` de novo em seguida —
+> a segunda vez esbarra em CNPJ duplicado, porque `seed.ts` não é
+> idempotente (é pra rodar uma vez só, num banco vazio).
 
 Pré-requisitos: Node.js 20+, pnpm, PostgreSQL. Ver `.env.example` para a
 lista completa de variáveis.

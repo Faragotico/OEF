@@ -61,16 +61,30 @@ cd backend
 pnpm install
 
 cp .env.example .env
-# edite o .env: preencha DATABASE_URL (senha do seu Postgres) e gere um
+# edite o .env: preencha DATABASE_URL (senha do seu Postgres), gere um
 # JWT_SECRET com:
 #   node -e "console.log(require('crypto').randomBytes(48).toString('hex'))"
+# e troque ADMIN_EMAIL/ADMIN_NOME/ADMIN_SENHA (o seed-usuario.ts lê
+# esses três lá do .env — sem trocar, o login fica com o e-mail/senha
+# de exemplo, que não existe de verdade)
 
-pnpm exec prisma migrate dev    # cria as tabelas
-pnpm exec prisma db seed        # dados de exemplo (empresas, postos, turnos)
+pnpm exec prisma migrate dev    # cria as tabelas — e JÁ RODA o seed de exemplo sozinho
 pnpm exec ts-node prisma/seed-usuario.ts   # cria o usuário de login (lê ADMIN_* do .env)
+
+# opcional — popula ~500 funcionários (20 empresas, 100 postos) pra
+# testar com volume ou pra demonstração. Não roda sozinho, pode rodar
+# de novo sem duplicar.
+pnpm exec ts-node prisma/seed-demo.ts
 
 pnpm run start:dev              # http://localhost:3001
 ```
+
+> `migrate dev` já chama `pnpm exec prisma db seed` por conta própria
+> depois de aplicar as migrations — não rode o `db seed` nós dois em
+> seguida, a segunda vez esbarra em CNPJ duplicado (o `seed.ts` não é
+> idempotente, é pra rodar uma vez só). Só rode `db seed` à parte se o
+> banco já tiver as tabelas mas nenhum dado (ex: depois de um `migrate
+> deploy`, que não semeia sozinho).
 
 ### 2. Frontend
 
@@ -111,8 +125,10 @@ OEF/
 │   ├── prisma/
 │   │   ├── schema.prisma       tabelas do banco
 │   │   ├── migrations/
-│   │   ├── seed.ts             dados de exemplo
-│   │   └── seed-usuario.ts     cria/atualiza o usuário de login
+│   │   ├── seed.ts             dados de exemplo (roda sozinho via migrate dev)
+│   │   ├── seed-usuario.ts     cria/atualiza o usuário de login
+│   │   ├── seed-demo.ts        ~500 funcionários pra volume/demonstração
+│   │   └── seed-matriz-real.ts  reconstrói um posto real pra comparar com o PDF
 │   └── src/
 │       ├── domain/             regras de negócio e o motor de escala
 │       │   └── escala/         planejador.ts (o motor), restricoes.ts (RN01–RN07)

@@ -4,7 +4,7 @@ import { PostoForm } from "@/components/posto-form";
 type Empresa = { id: number; nome: string };
 
 export default async function NovoPostoPage() {
-  const empresas = await apiGet<Empresa[]>("/empresas");
+  const empresas = await apiGet<Empresa[]>("/empresas/opcoes");
 
   return (
     <main className="min-h-screen bg-background px-8 py-8">

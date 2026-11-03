@@ -17,7 +17,7 @@ export default async function EditarPostoPage({
   const { id } = await params;
   const [posto, empresas] = await Promise.all([
     apiGet<Posto>(`/postos/${id}`),
-    apiGet<Empresa[]>("/empresas"),
+    apiGet<Empresa[]>("/empresas/opcoes"),
   ]);
 
   return (

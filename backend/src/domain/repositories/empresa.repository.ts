@@ -17,6 +17,35 @@ export class EmpresaRepository {
     return this.prisma.empresa.findMany({ orderBy: { nome: 'asc' } });
   }
 
+  // Quantas empresas por página. O corte acontece no banco: só as
+  // linhas da página pedida saem da consulta e viajam pela rede.
+  static readonly POR_PAGINA = 10;
+
+  async findAllPaginado(
+    where: Prisma.EmpresaWhereInput,
+    page: number,
+  ): Promise<{ data: Empresa[]; total: number }> {
+    const take = EmpresaRepository.POR_PAGINA;
+    const skip = (page - 1) * take;
+
+    // A página de dados e a contagem do total saem juntas, em
+    // paralelo. As duas recebem o MESMO `where`, senão o total
+    // contaria empresas que o filtro já descartou.
+    const [data, total] = await this.prisma.$transaction([
+      this.prisma.empresa.findMany({
+        where,
+        // `id` desempata nomes iguais, pra a ordem não mudar entre
+        // uma página e outra.
+        orderBy: [{ nome: 'asc' }, { id: 'asc' }],
+        skip,
+        take,
+      }),
+      this.prisma.empresa.count({ where }),
+    ]);
+
+    return { data, total };
+  }
+
   findById(id: number): Promise<Empresa | null> {
     return this.prisma.empresa.findUnique({ where: { id } });
   }

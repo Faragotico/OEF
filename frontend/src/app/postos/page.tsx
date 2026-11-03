@@ -12,7 +12,7 @@ type Posto = {
 export default async function PostosPage() {
   const [postos, empresas] = await Promise.all([
     apiGet<Posto[]>("/postos"),
-    apiGet<Empresa[]>("/empresas"),
+    apiGet<Empresa[]>("/empresas/opcoes"),
   ]);
 
   return (

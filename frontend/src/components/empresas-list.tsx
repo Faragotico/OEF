@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type FormEvent } from "react";
+import { usePathname, useRouter } from "next/navigation";
 import { DeleteButton } from "@/components/delete-button";
 import { EmpresaForm } from "@/components/empresa-form";
 import { Modal } from "@/components/modal";
@@ -19,8 +20,48 @@ type EstadoModal = { modo: "novo" } | { modo: "editar"; empresa: Empresa } | nul
 // aplicável. A página em si (server component) só busca os dados e
 // passa pra aqui — permite manter o fetch no servidor mesmo com a
 // interatividade do popup.
-export function EmpresasList({ empresas }: { empresas: Empresa[] }) {
+//
+// Este componente NÃO filtra nem pagina nada: recebe a página já
+// pronta do backend e, quando a pessoa busca ou troca de página,
+// navega pra uma nova URL (?busca=...&page=...) — aí o server
+// component busca de novo com os parâmetros certos.
+export function EmpresasList({
+  empresas,
+  total,
+  page,
+  totalPaginas,
+  buscaAtual,
+}: {
+  empresas: Empresa[];
+  total: number;
+  page: number;
+  totalPaginas: number;
+  buscaAtual: string;
+}) {
+  const router = useRouter();
+  const pathname = usePathname();
   const [modal, setModal] = useState<EstadoModal>(null);
+  const [busca, setBusca] = useState(buscaAtual);
+
+  function navegar(params: { busca?: string; page?: number }) {
+    const qs = new URLSearchParams();
+    if (params.busca) qs.set("busca", params.busca);
+    if (params.page && params.page > 1) qs.set("page", String(params.page));
+    const texto = qs.toString();
+    router.push(texto ? `${pathname}?${texto}` : pathname);
+  }
+
+  // Buscar sempre volta pra página 1 — senão dá pra ficar "perdido"
+  // numa página que não existe mais depois que a busca reduz o total.
+  function buscar(e: FormEvent) {
+    e.preventDefault();
+    navegar({ busca: busca.trim() });
+  }
+
+  function limpar() {
+    setBusca("");
+    router.push(pathname);
+  }
 
   return (
     <>
@@ -40,6 +81,36 @@ export function EmpresasList({ empresas }: { empresas: Empresa[] }) {
         >
           + Nova Empresa
         </button>
+      </div>
+
+      <form onSubmit={buscar} className="mb-4 flex flex-wrap items-center gap-2">
+        <input
+          type="search"
+          value={busca}
+          onChange={(e) => setBusca(e.target.value)}
+          placeholder="Buscar por nome, CNPJ ou contato"
+          className="min-w-64 flex-1 rounded-md border border-border bg-card px-3 py-2 text-sm text-text"
+        />
+        <button
+          type="submit"
+          className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-primary-hover"
+        >
+          Buscar
+        </button>
+        {buscaAtual && (
+          <button
+            type="button"
+            onClick={limpar}
+            className="rounded-lg border border-border bg-card px-3 py-2 text-sm font-semibold text-text transition-colors hover:bg-text/5"
+          >
+            Limpar
+          </button>
+        )}
+      </form>
+
+      <div className="mb-3 text-sm text-zinc-600 dark:text-zinc-400">
+        {total} empresa{total === 1 ? "" : "s"}
+        {total > 0 && ` · página ${page} de ${totalPaginas}`}
       </div>
 
       <div className="overflow-x-auto rounded-lg border border-border bg-card">
@@ -84,13 +155,39 @@ export function EmpresasList({ empresas }: { empresas: Empresa[] }) {
                   colSpan={4}
                   className="px-4 py-6 text-center text-zinc-500 dark:text-zinc-400"
                 >
-                  Nenhuma empresa cadastrada.
+                  {buscaAtual
+                    ? "Nenhuma empresa encontrada com essa busca."
+                    : "Nenhuma empresa cadastrada."}
                 </td>
               </tr>
             )}
           </tbody>
         </table>
       </div>
+
+      {totalPaginas > 1 && (
+        <div className="mt-4 flex items-center justify-center gap-3 text-sm text-text">
+          <button
+            type="button"
+            disabled={page <= 1}
+            onClick={() => navegar({ busca: buscaAtual, page: page - 1 })}
+            className="rounded-lg border border-border bg-card px-3 py-1.5 text-xs font-semibold transition-colors hover:bg-text/5 disabled:opacity-40 disabled:hover:bg-card"
+          >
+            ← Anterior
+          </button>
+          <span>
+            Página {page} de {totalPaginas}
+          </span>
+          <button
+            type="button"
+            disabled={page >= totalPaginas}
+            onClick={() => navegar({ busca: buscaAtual, page: page + 1 })}
+            className="rounded-lg border border-border bg-card px-3 py-1.5 text-xs font-semibold transition-colors hover:bg-text/5 disabled:opacity-40 disabled:hover:bg-card"
+          >
+            Próxima →
+          </button>
+        </div>
+      )}
 
       {modal && (
         <Modal
