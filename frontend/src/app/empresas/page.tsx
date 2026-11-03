@@ -6,6 +6,8 @@ type Empresa = {
   nome: string;
   cnpj: string;
   contato: string | null;
+  logradouro: string | null;
+  cidade: string | null;
 };
 type EmpresasPaginadas = {
   data: Empresa[];

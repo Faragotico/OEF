@@ -3,6 +3,7 @@
 import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { apiPatch, apiPost } from "@/lib/api";
+import { Rotulo } from "@/components/rotulo";
 
 const inputClass =
   "rounded-md border border-border bg-card px-3 py-2 text-sm text-text";
@@ -81,7 +82,7 @@ export function AusenciaForm({
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-4">
       <label className="flex flex-col gap-1 text-sm text-text">
-        Funcionário
+        <Rotulo obrigatorio>Funcionário</Rotulo>
         <select
           required
           value={form.funcionarioId}
@@ -107,7 +108,7 @@ export function AusenciaForm({
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <label className="flex flex-col gap-1 text-sm text-text">
-          Data início
+          <Rotulo obrigatorio>Data início</Rotulo>
           <input
             type="date"
             required
@@ -118,7 +119,7 @@ export function AusenciaForm({
         </label>
 
         <label className="flex flex-col gap-1 text-sm text-text">
-          Data fim
+          <Rotulo obrigatorio>Data fim</Rotulo>
           <input
             type="date"
             required
@@ -130,7 +131,7 @@ export function AusenciaForm({
       </div>
 
       <label className="flex flex-col gap-1 text-sm text-text">
-        Motivo
+        <Rotulo obrigatorio>Motivo</Rotulo>
         <input
           required
           minLength={3}
@@ -143,7 +144,7 @@ export function AusenciaForm({
       </label>
 
       <label className="flex flex-col gap-1 text-sm text-text">
-        Compensação (opcional)
+        <Rotulo opcional>Compensação</Rotulo>
         <input
           maxLength={200}
           placeholder="Ex: reposta em outro dia, folga descontada..."

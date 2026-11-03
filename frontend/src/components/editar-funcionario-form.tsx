@@ -4,6 +4,7 @@ import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { apiPatch } from "@/lib/api";
 import { formatarTelefone } from "@/lib/telefone";
+import { Rotulo } from "@/components/rotulo";
 import {
   type CamposEscala,
   FuncionarioCamposEscala,
@@ -101,7 +102,7 @@ export function EditarFuncionarioForm({
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-4">
       <label className="flex flex-col gap-1 text-sm text-text">
-        Nome
+        <Rotulo obrigatorio>Nome</Rotulo>
         <input
           required
           minLength={3}
@@ -123,7 +124,7 @@ export function EditarFuncionarioForm({
       </label>
 
       <label className="flex flex-col gap-1 text-sm text-text">
-        Telefone (opcional)
+        <Rotulo opcional>Telefone</Rotulo>
         <input
           type="tel"
           maxLength={15}
@@ -137,7 +138,7 @@ export function EditarFuncionarioForm({
       </label>
 
       <label className="flex flex-col gap-1 text-sm text-text">
-        Cargo
+        <Rotulo obrigatorio>Cargo</Rotulo>
         <input
           required
           minLength={2}
@@ -150,7 +151,7 @@ export function EditarFuncionarioForm({
       </label>
 
       <label className="flex flex-col gap-1 text-sm text-text">
-        Carga horária semanal (h)
+        <Rotulo obrigatorio>Carga horária semanal (h)</Rotulo>
         <input
           type="number"
           required
@@ -166,7 +167,7 @@ export function EditarFuncionarioForm({
       </label>
 
       <label className="flex flex-col gap-1 text-sm text-text">
-        Posto de trabalho
+        <Rotulo opcional>Posto de trabalho</Rotulo>
         <select
           value={form.postoId}
           onChange={(e) => {

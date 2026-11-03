@@ -3,6 +3,7 @@
 import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { apiPatch, apiPost } from "@/lib/api";
+import { Rotulo } from "@/components/rotulo";
 
 const inputClass =
   "rounded-md border border-border bg-card px-3 py-2 text-sm text-text";
@@ -115,7 +116,7 @@ export function RegraForm({
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-4">
       <label className="flex flex-col gap-1 text-sm text-text">
-        Descrição
+        <Rotulo obrigatorio>Descrição</Rotulo>
         <input
           required
           minLength={3}
@@ -128,7 +129,7 @@ export function RegraForm({
       </label>
 
       <label className="flex flex-col gap-1 text-sm text-text">
-        Tipo de regra
+        <Rotulo obrigatorio>Tipo de regra</Rotulo>
         <select
           required
           value={form.tipo}
@@ -149,7 +150,7 @@ export function RegraForm({
       {form.tipo === "escala" ? (
         <div className="grid grid-cols-2 gap-4">
           <label className="flex flex-col gap-1 text-sm text-text">
-            Dias trabalhados
+            <Rotulo obrigatorio>Dias trabalhados</Rotulo>
             <input
               type="number"
               required
@@ -161,7 +162,7 @@ export function RegraForm({
             />
           </label>
           <label className="flex flex-col gap-1 text-sm text-text">
-            Dias de folga
+            <Rotulo obrigatorio>Dias de folga</Rotulo>
             <input
               type="number"
               required
@@ -175,7 +176,7 @@ export function RegraForm({
         </div>
       ) : (
         <label className="flex flex-col gap-1 text-sm text-text">
-          Valor (horas)
+          <Rotulo obrigatorio>Valor (horas)</Rotulo>
           <input
             type="number"
             required

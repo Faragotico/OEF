@@ -1,5 +1,7 @@
 "use client";
 
+import { Rotulo } from "@/components/rotulo";
+
 type Turno = {
   id: number;
   descricao: string | null;
@@ -104,7 +106,7 @@ export function FuncionarioCamposEscala({
 
       {!valor.coringa && (
         <label className="flex flex-col gap-1 text-sm text-text">
-          Turno de casa
+          <Rotulo opcional>Turno de casa</Rotulo>
           <select
             value={valor.turnoPadraoId}
             onChange={(e) => onChange({ ...valor, turnoPadraoId: e.target.value })}
@@ -124,7 +126,11 @@ export function FuncionarioCamposEscala({
 
       <fieldset className="flex flex-col gap-1.5 text-sm text-text">
         <legend className="mb-1">
-          {valor.coringa ? "Turnos que este coringa cobre" : "Também pode cobrir (opcional)"}
+          {valor.coringa ? (
+            <Rotulo obrigatorio>Turnos que este coringa cobre</Rotulo>
+          ) : (
+            <Rotulo opcional>Também pode cobrir</Rotulo>
+          )}
         </legend>
         {turnosDoPosto.length === 0 ? (
           <p className="text-xs text-zinc-500 dark:text-zinc-400">
@@ -154,7 +160,9 @@ export function FuncionarioCamposEscala({
       </fieldset>
 
       <fieldset className="flex flex-col gap-1.5 text-sm text-text">
-        <legend className="mb-1">Nunca trabalha em (opcional)</legend>
+        <legend className="mb-1">
+          <Rotulo opcional>Nunca trabalha em</Rotulo>
+        </legend>
         <div className="flex flex-wrap gap-1.5">
           {DIAS.map((nome, dia) => {
             const marcado = valor.diasSemanaVetados.includes(dia);

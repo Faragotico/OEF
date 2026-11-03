@@ -3,6 +3,7 @@
 import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { apiPatch, apiPost } from "@/lib/api";
+import { Rotulo } from "@/components/rotulo";
 
 const inputClass =
   "rounded-md border border-border bg-card px-3 py-2 text-sm text-text";
@@ -71,7 +72,7 @@ export function PostoForm({
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-4">
       <label className="flex flex-col gap-1 text-sm text-text">
-        Nome
+        <Rotulo obrigatorio>Nome</Rotulo>
         <input
           required
           minLength={3}
@@ -84,7 +85,7 @@ export function PostoForm({
       </label>
 
       <label className="flex flex-col gap-1 text-sm text-text">
-        Localização
+        <Rotulo obrigatorio>Localização</Rotulo>
         <input
           required
           minLength={3}
@@ -97,7 +98,7 @@ export function PostoForm({
       </label>
 
       <label className="flex flex-col gap-1 text-sm text-text">
-        Empresa
+        <Rotulo obrigatorio>Empresa</Rotulo>
         <select
           required
           value={form.empresaId}

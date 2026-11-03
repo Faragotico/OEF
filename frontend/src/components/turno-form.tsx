@@ -3,6 +3,7 @@
 import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { apiPatch, apiPost } from "@/lib/api";
+import { Rotulo } from "@/components/rotulo";
 
 const inputClass =
   "rounded-md border border-border bg-card px-3 py-2 text-sm text-text";
@@ -83,7 +84,7 @@ export function TurnoForm({
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-4">
       <label className="flex flex-col gap-1 text-sm text-text">
-        Descrição (opcional)
+        <Rotulo opcional>Descrição</Rotulo>
         <input
           maxLength={100}
           placeholder="Ex: Manhã, Abertura, Fechamento..."
@@ -95,7 +96,7 @@ export function TurnoForm({
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <label className="flex flex-col gap-1 text-sm text-text">
-          Início
+          <Rotulo obrigatorio>Início</Rotulo>
           <input
             type="time"
             required
@@ -106,7 +107,7 @@ export function TurnoForm({
         </label>
 
         <label className="flex flex-col gap-1 text-sm text-text">
-          Fim
+          <Rotulo obrigatorio>Fim</Rotulo>
           <input
             type="time"
             required
@@ -119,7 +120,7 @@ export function TurnoForm({
       <p className="-mt-2 text-xs text-zinc-500 dark:text-zinc-400">O fim deve ser depois do início.</p>
 
       <label className="flex flex-col gap-1 text-sm text-text">
-        Posto de trabalho
+        <Rotulo opcional>Posto de trabalho</Rotulo>
         <select
           value={form.postoId}
           onChange={(e) => setForm({ ...form, postoId: e.target.value })}

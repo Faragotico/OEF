@@ -45,4 +45,17 @@ export class CreateEmpresaDto {
     message: 'O contato deve ser um telefone no formato (XX) XXXXX-XXXX ou (XX) XXXX-XXXX.',
   })
   contato?: string;
+
+  // ---- Endereço (os dois são obrigatórios ao criar) ----
+
+  // Rua ou avenida; pode já incluir o número ("Rua Dr. Colares, 320").
+  @IsString()
+  @MinLength(3, { message: 'A rua deve ter ao menos 3 caracteres.' })
+  @MaxLength(150, { message: 'A rua deve ter no máximo 150 caracteres.' })
+  logradouro: string;
+
+  @IsString()
+  @MinLength(2, { message: 'A cidade deve ter ao menos 2 caracteres.' })
+  @MaxLength(80, { message: 'A cidade deve ter no máximo 80 caracteres.' })
+  cidade: string;
 }

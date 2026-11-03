@@ -4,6 +4,7 @@ import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { apiPatch, apiPost } from "@/lib/api";
 import { formatarTelefone } from "@/lib/telefone";
+import { Rotulo } from "@/components/rotulo";
 
 const inputClass =
   "rounded-md border border-border bg-card px-3 py-2 text-sm text-text";
@@ -12,6 +13,16 @@ type ValoresEmpresa = {
   nome: string;
   cnpj: string;
   contato: string;
+  logradouro: string;
+  cidade: string;
+};
+
+const VAZIO: ValoresEmpresa = {
+  nome: "",
+  cnpj: "",
+  contato: "",
+  logradouro: "",
+  cidade: "",
 };
 
 // Um form só, reaproveitado em "Nova empresa" e "Editar empresa" — a
@@ -31,9 +42,7 @@ export function EmpresaForm({
 }) {
   const router = useRouter();
   const modoEdicao = id !== undefined;
-  const [form, setForm] = useState<ValoresEmpresa>(
-    valoresIniciais ?? { nome: "", cnpj: "", contato: "" },
-  );
+  const [form, setForm] = useState<ValoresEmpresa>(valoresIniciais ?? VAZIO);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -46,6 +55,8 @@ export function EmpresaForm({
       nome: form.nome,
       cnpj: form.cnpj,
       contato: form.contato || undefined,
+      logradouro: form.logradouro,
+      cidade: form.cidade,
     };
 
     try {
@@ -70,7 +81,7 @@ export function EmpresaForm({
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-4">
       <label className="flex flex-col gap-1 text-sm text-text">
-        Nome
+        <Rotulo obrigatorio>Nome</Rotulo>
         <input
           required
           minLength={3}
@@ -83,7 +94,7 @@ export function EmpresaForm({
       </label>
 
       <label className="flex flex-col gap-1 text-sm text-text">
-        CNPJ (14 caracteres alfanuméricos, sem máscara)
+        <Rotulo obrigatorio>CNPJ (14 caracteres alfanuméricos, sem máscara)</Rotulo>
         <input
           required
           // maxLength alto de propósito, mesmo o campo sendo "sem
@@ -111,7 +122,7 @@ export function EmpresaForm({
       </label>
 
       <label className="flex flex-col gap-1 text-sm text-text">
-        Contato (telefone, opcional)
+        <Rotulo opcional>Contato (telefone)</Rotulo>
         <input
           type="tel"
           maxLength={15}
@@ -128,6 +139,34 @@ export function EmpresaForm({
           className={inputClass}
         />
       </label>
+
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-5">
+        <label className="flex flex-col gap-1 text-sm text-text sm:col-span-2">
+          <Rotulo obrigatorio>Cidade</Rotulo>
+          <input
+            required
+            minLength={2}
+            maxLength={80}
+            placeholder="Ex.: Ponta Grossa"
+            value={form.cidade}
+            onChange={(e) => setForm({ ...form, cidade: e.target.value })}
+            className={inputClass}
+          />
+        </label>
+
+        <label className="flex flex-col gap-1 text-sm text-text sm:col-span-3">
+          <Rotulo obrigatorio>Rua</Rotulo>
+          <input
+            required
+            minLength={3}
+            maxLength={150}
+            placeholder="Ex.: Rua Dr. Colares, 320"
+            value={form.logradouro}
+            onChange={(e) => setForm({ ...form, logradouro: e.target.value })}
+            className={inputClass}
+          />
+        </label>
+      </div>
 
       {error && (
         <p className="rounded-lg bg-danger px-3 py-2 text-sm font-medium text-white">

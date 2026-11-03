@@ -12,6 +12,8 @@ type Empresa = {
   nome: string;
   cnpj: string;
   contato: string | null;
+  logradouro: string | null;
+  cidade: string | null;
 };
 
 type EstadoModal = { modo: "novo" } | { modo: "editar"; empresa: Empresa } | null;
@@ -118,6 +120,7 @@ export function EmpresasList({
               <th className="px-4 py-3 font-medium">Nome</th>
               <th className="px-4 py-3 font-medium">CNPJ</th>
               <th className="px-4 py-3 font-medium">Contato</th>
+              <th className="px-4 py-3 font-medium">Endereço</th>
               <th className="px-4 py-3 font-medium">Ações</th>
             </tr>
           </thead>
@@ -130,6 +133,9 @@ export function EmpresasList({
                 <td className="px-4 py-3">{e.nome}</td>
                 <td className="px-4 py-3">{e.cnpj}</td>
                 <td className="px-4 py-3">{e.contato ?? "—"}</td>
+                <td className="px-4 py-3">
+                  {[e.logradouro, e.cidade].filter(Boolean).join(", ") || "—"}
+                </td>
                 <td className="px-4 py-3">
                   <div className="flex items-center gap-3">
                     <button
@@ -150,7 +156,7 @@ export function EmpresasList({
             {empresas.length === 0 && (
               <tr>
                 <td
-                  colSpan={4}
+                  colSpan={5}
                   className="px-4 py-6 text-center text-zinc-500 dark:text-zinc-400"
                 >
                   {buscaAtual
@@ -182,6 +188,8 @@ export function EmpresasList({
                     nome: modal.empresa.nome,
                     cnpj: modal.empresa.cnpj,
                     contato: modal.empresa.contato ?? "",
+                    logradouro: modal.empresa.logradouro ?? "",
+                    cidade: modal.empresa.cidade ?? "",
                   }
                 : undefined
             }

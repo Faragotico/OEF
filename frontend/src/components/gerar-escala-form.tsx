@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState, type FormEvent } from "react";
 import Link from "next/link";
 import { apiPost } from "@/lib/api";
 import { EscalaGrid } from "@/components/escala-grid";
+import { Rotulo } from "@/components/rotulo";
 import {
   type Diagnostico,
   MOTIVO_FOLGA,
@@ -407,7 +408,7 @@ export function GerarEscalaForm({
     <div className="flex flex-col gap-8">
       <form onSubmit={handleSubmit} className="flex flex-col gap-4">
         <label className="flex flex-col gap-1 text-sm text-text">
-          Posto de trabalho
+          <Rotulo obrigatorio>Posto de trabalho</Rotulo>
           <select
             required
             value={postoId}
@@ -472,7 +473,7 @@ export function GerarEscalaForm({
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <label className="flex flex-col gap-1 text-sm text-text">
-            Data início
+            <Rotulo obrigatorio>Data início</Rotulo>
             <input
               type="date"
               required
@@ -482,7 +483,7 @@ export function GerarEscalaForm({
             />
           </label>
           <label className="flex flex-col gap-1 text-sm text-text">
-            Data fim
+            <Rotulo obrigatorio>Data fim</Rotulo>
             <input
               type="date"
               required
@@ -494,7 +495,7 @@ export function GerarEscalaForm({
         </div>
 
         <label className="flex flex-col gap-1 text-sm text-text">
-          Padrão de rodízio
+          <Rotulo opcional>Padrão de rodízio</Rotulo>
           <select value={regraId} onChange={(e) => setRegraId(e.target.value)} className={inputClass}>
             <option value="">Usar a primeira regra de rodízio cadastrada</option>
             {/* Só regras tipo "escala" fazem sentido aqui — as outras

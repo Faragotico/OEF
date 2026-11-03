@@ -21,6 +21,12 @@ model Empresa {
   cnpj    String  @unique @db.Char(14) // somente dígitos
   contato String? @db.VarChar(100)
 
+  // Endereço: rua (logradouro) e cidade. Colunas anuláveis no banco só
+  // pra não quebrar as empresas que já existiam (nasceram sem endereço);
+  // a API exige os dois ao CRIAR (ver CreateEmpresaDto).
+  logradouro String? @db.VarChar(150) // rua/avenida, já com o número se quiser
+  cidade     String? @db.VarChar(80)
+
   postos PostoTrabalho[]
 
   @@map("empresa")
