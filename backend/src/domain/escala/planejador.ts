@@ -67,6 +67,7 @@ import {
   desfazer,
   verificar,
 } from './restricoes';
+import { semDomingoDeFolga } from './conferencia';
 
 // Pesos da função de custo. São ordens de grandeza, não números finos:
 // o que importa é a hierarquia entre eles, não o valor exato.
@@ -502,21 +503,22 @@ function diagnosticar(
   // Feriado master em domingo (a Páscoa é sempre um) fecha o posto:
   // todo mundo já tem domingo de folga e não há o que avisar. Foi um
   // aviso falso real em abril/2026 na versão anterior.
-  const domingoFeriado = dias.some((d) => d.diaDaSemana === 0 && d.ehFeriadoMaster);
-  const domingos = dias.filter((d) => d.diaDaSemana === 0 && !d.ehFeriadoMaster);
-  const semDomingo = domingoFeriado
-    ? []
-    : pessoas.filter((p) => {
-        const ep = estado.porPessoa.get(p.id)!;
-        return domingos.length > 0 && ep.domingosTrabalhados >= domingos.length;
-      });
+  //
+  // A conta (e a exceção do feriado) mora em conferencia.ts: o "Validar
+  // escala" usa a MESMA função, pra não haver aviso na geração que a
+  // validação deixe passar.
+  const { pessoas: semDomingo, domingosNoPeriodo } = semDomingoDeFolga(
+    dias,
+    pessoas,
+    (id, iso) => estado.porPessoa.get(id)!.turnoPorDia.has(iso),
+  );
   if (semDomingo.length > 0) {
     diagnosticos.push({
       codigo: 'sem-domingo-de-folga',
       nivel: 'aviso',
       dados: {
         pessoas: semDomingo.map((p) => ({ id: p.id, nome: p.nome })),
-        domingosNoPeriodo: domingos.length,
+        domingosNoPeriodo,
         pessoasNoPosto: pessoas.length,
       },
     });

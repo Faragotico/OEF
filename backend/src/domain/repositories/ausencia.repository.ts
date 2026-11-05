@@ -14,11 +14,33 @@ export class AusenciaRepository {
     return this.prisma.ausencia.create({ data, include: this.include });
   }
 
-  findAll(): Promise<Ausencia[]> {
-    return this.prisma.ausencia.findMany({
-      orderBy: { dataInic: 'desc' },
-      include: this.include,
-    });
+  // Quantas ausências por página. O corte acontece no banco: só as
+  // linhas da página pedida saem da consulta e viajam pela rede.
+  static readonly POR_PAGINA = 10;
+
+  async findAllPaginado(
+    where: Prisma.AusenciaWhereInput,
+    page: number,
+  ): Promise<{ data: Ausencia[]; total: number }> {
+    const take = AusenciaRepository.POR_PAGINA;
+    const skip = (page - 1) * take;
+
+    // Dados e total saem juntos e com o MESMO `where`, senão o total
+    // contaria ausências que o filtro já descartou.
+    const [data, total] = await this.prisma.$transaction([
+      this.prisma.ausencia.findMany({
+        where,
+        // Mais recentes primeiro; `id` desempata datas iguais pra a
+        // ordem não mudar entre uma página e outra.
+        orderBy: [{ dataInic: 'desc' }, { id: 'desc' }],
+        skip,
+        take,
+        include: this.include,
+      }),
+      this.prisma.ausencia.count({ where }),
+    ]);
+
+    return { data, total };
   }
 
   findById(id: number): Promise<Ausencia | null> {

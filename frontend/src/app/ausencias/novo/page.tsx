@@ -4,7 +4,7 @@ import { AusenciaForm } from "@/components/ausencia-form";
 type Funcionario = { id: number; nome: string; coringa: boolean };
 
 export default async function NovaAusenciaPage() {
-  const funcionarios = await apiGet<Funcionario[]>("/funcionarios");
+  const funcionarios = await apiGet<Funcionario[]>("/funcionarios/opcoes");
 
   return (
     <main className="min-h-screen bg-background px-8 py-8">

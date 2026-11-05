@@ -6,6 +6,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Nav } from "@/components/nav";
+import { AjudaContextual } from "@/components/ajuda-contextual";
 import { SairButton } from "@/components/sair-button";
 import { temSessao } from "@/lib/sessao";
 
@@ -104,6 +105,7 @@ export default async function RootLayout({
               </div>
 
               <div className="flex flex-col items-start gap-3 px-2">
+                <AjudaContextual />
                 <SairButton />
                 <ThemeToggle />
                 <p className="text-xs text-white/40">Versão 1.0.0</p>

@@ -4,6 +4,7 @@ import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { apiPatch, apiPost } from "@/lib/api";
 import { Rotulo } from "@/components/rotulo";
+import { Aviso } from "@/components/aviso";
 
 const inputClass =
   "rounded-md border border-border bg-card px-3 py-2 text-sm text-text";
@@ -82,7 +83,12 @@ export function AusenciaForm({
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-4">
       <label className="flex flex-col gap-1 text-sm text-text">
-        <Rotulo obrigatorio>Funcionário</Rotulo>
+        <Rotulo
+          obrigatorio
+          dica="A ausência vale para as próximas gerações de escala. Uma escala já pronta não muda sozinha: use Validar escala para ver os conflitos."
+        >
+          Funcionário
+        </Rotulo>
         <select
           required
           value={form.funcionarioId}
@@ -155,9 +161,7 @@ export function AusenciaForm({
       </label>
 
       {error && (
-        <p className="rounded-lg bg-danger px-3 py-2 text-sm font-medium text-white">
-          {error}
-        </p>
+        <Aviso nivel="erro" titulo={error} />
       )}
 
       <button

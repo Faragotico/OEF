@@ -1,8 +1,10 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { AusenciaRepository } from '../repositories/ausencia.repository';
 import { FuncionarioRepository } from '../repositories/funcionario.repository';
 import { CreateAusenciaDto } from '../../infra/http/dtos/ausencia/create-ausencia.dto';
 import { UpdateAusenciaDto } from '../../infra/http/dtos/ausencia/update-ausencia.dto';
+import { FindAusenciasQueryDto } from '../../infra/http/dtos/ausencia/find-ausencias-query.dto';
 import { normalizeDate } from '../../helpers/date.helpers';
 
 // O service é o CÉREBRO. Aplica as regras de negócio e decide o que
@@ -29,8 +31,45 @@ export class AusenciaService {
     });
   }
 
-  findAll() {
-    return this.repository.findAll();
+  // Monta o filtro (where do Prisma) a partir da query string e busca
+  // só a página pedida — ver AusenciaRepository.findAllPaginado.
+  async findAllPaginado(query: FindAusenciasQueryDto) {
+    const page = query.page ?? 1;
+    // trim() tira espaços das pontas; "" (busca vazia) vira "sem filtro".
+    const busca = query.busca?.trim();
+
+    const where: Prisma.AusenciaWhereInput = {};
+
+    if (busca) {
+      // Uma caixa de busca, duas colunas: basta UMA bater (OR).
+      where.OR = [
+        { funcionario: { nome: { contains: busca, mode: 'insensitive' } } },
+        { motivo: { contains: busca, mode: 'insensitive' } },
+      ];
+    }
+
+    // Período por SOBREPOSIÇÃO: a ausência entra se terminar depois do
+    // início do filtro E começar antes do fim dele. Cada ponta é
+    // opcional — só uma delas também funciona.
+    if (query.dataInicio) {
+      where.dataFim = { gte: normalizeDate(query.dataInicio) };
+    }
+    if (query.dataFim) {
+      where.dataInic = { lte: normalizeDate(query.dataFim) };
+    }
+
+    const { data, total } = await this.repository.findAllPaginado(where, page);
+
+    return {
+      data,
+      total,
+      page,
+      // Math.max(1, ...) pra lista vazia mostrar "página 1 de 1".
+      totalPaginas: Math.max(
+        1,
+        Math.ceil(total / AusenciaRepository.POR_PAGINA),
+      ),
+    };
   }
 
   async findOne(id: number) {

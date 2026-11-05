@@ -41,6 +41,20 @@ const listaDeNomes = (valor: unknown): string => {
     .join(", ");
 };
 
+// [{ nome: "14:00–22:00", dias: ["2026-12-04", ...] }] -> "14:00–22:00: 04/12, 05/12"
+const listaDeTurnos = (valor: unknown): string => {
+  if (!Array.isArray(valor)) return "";
+  return valor
+    .map((t) => {
+      const turno = t as { nome?: unknown; dias?: unknown };
+      const dias = Array.isArray(turno.dias)
+        ? turno.dias.map((dia) => diaMes(String(dia))).join(", ")
+        : "";
+      return `${turno.nome}: ${dias}`;
+    })
+    .join(" · ");
+};
+
 const num = (valor: unknown, padrao = 0): number =>
   typeof valor === "number" ? valor : padrao;
 
@@ -91,6 +105,19 @@ const TRADUTORES: Record<string, (d: Record<string, unknown>) => DiagnosticoLegi
       "Um segundo coringa resolve, porque a cadeia de coberturas deixa de cair sempre na mesma pessoa. Rever o horário de abertura também.",
   }),
 
+  "vagas-descobertas": (d) => ({
+    nivel: "aviso",
+    titulo: `${num(d.total)} vaga(s) sem ninguém`,
+    detalhe: listaDeTurnos(d.turnos),
+    acao: "Aloque alguém nesses dias (a grade deixa trazer funcionário de outro posto) ou ajuste a demanda do turno.",
+  }),
+
+  "cobertura-acima": (d) => ({
+    nivel: "info",
+    titulo: `${num(d.total)} alocação(ões) além da demanda do turno`,
+    detalhe: listaDeTurnos(d.turnos),
+  }),
+
   "carga-semanal-estoura": (d) => ({
     nivel: "aviso",
     titulo: `${num(d.vagasAfetadas)} vaga(s) ficaram vazias por carga horária semanal`,
@@ -135,6 +162,99 @@ export const REGRA_CURTA: Record<string, string> = {
   "nao-habilitado": "não habilitado neste turno",
   "dia-da-semana-vetado": "não trabalha neste dia da semana",
 };
+
+export type DetalheViolacao =
+  | { tipo: "corrida"; inicio: string; fim: string; dias: number }
+  | { tipo: "descanso"; de: string; para: string; horas: number }
+  | null;
+
+export type ViolacaoApi = {
+  alocacaoId: number | null;
+  funcionarioId: number;
+  funcionario: string;
+  data: string;
+  regra: string;
+  limite: number | null;
+  detalhe: DetalheViolacao;
+  motivo: string;
+};
+
+// "2026-12-02" -> "02/12"
+export const diaMes = (iso: string) => `${iso.slice(8, 10)}/${iso.slice(5, 7)}`;
+
+// 9.75 -> "9h45", 11 -> "11h"
+function horasEMinutos(horas: number): string {
+  const total = Math.round(horas * 60);
+  const h = Math.floor(total / 60);
+  const m = total % 60;
+  return m === 0 ? `${h}h` : `${h}h${String(m).padStart(2, "0")}`;
+}
+
+// Transforma as violações de UMA pessoa em frases que se leem sozinhas.
+// A auditoria acusa alocação por alocação (e só a primeira regra que
+// falhou), então um problema só — "6 dias seguidos" — chega como 4
+// violações. Aqui elas se juntam: uma frase por sequência, uma por par
+// de dias com pouco descanso, e as demais regras listam as datas.
+export function descreverViolacoes(violacoes: ViolacaoApi[]): string[] {
+  const ordenadas = [...violacoes].sort((a, b) => a.data.localeCompare(b.data));
+  const frases: string[] = [];
+  const vistos = new Set<string>();
+  const outras = new Map<string, { limite: number | null; datas: string[] }>();
+
+  for (const v of ordenadas) {
+    const d = v.detalhe;
+    if (d?.tipo === "corrida") {
+      const chave = `corrida|${d.inicio}`;
+      if (vistos.has(chave)) continue;
+      vistos.add(chave);
+      const maximo = v.regra === "RN07" ? 6 : v.limite;
+      frases.push(
+        `${d.dias} dias seguidos de trabalho (${diaMes(d.inicio)} a ${diaMes(d.fim)}) — o máximo é ${maximo}`,
+      );
+    } else if (d?.tipo === "descanso") {
+      const chave = `descanso|${d.de}`;
+      if (vistos.has(chave)) continue;
+      vistos.add(chave);
+      frases.push(
+        `Só ${horasEMinutos(d.horas)} de descanso entre ${diaMes(d.de)} e ${diaMes(d.para)} — o mínimo é ${v.limite}h`,
+      );
+    } else {
+      const grupo = outras.get(v.regra) ?? { limite: v.limite, datas: [] };
+      grupo.datas.push(v.data);
+      outras.set(v.regra, grupo);
+    }
+  }
+
+  for (const [regra, { limite, datas }] of outras) {
+    frases.push(`${textoViolacao(regra, limite)}: ${datas.map(diaMes).join(", ")}`);
+  }
+  return frases;
+}
+
+// Frase curta de uma violação sem detalhe (carga semanal, ausência…). A
+// API manda o código da regra e o limite; a frase mora aqui.
+export function textoViolacao(regra: string, limite: number | null): string {
+  switch (regra) {
+    case "RN04":
+      return `Passa de ${limite}h na semana`;
+    case "RN05":
+      return `Menos de ${limite}h de descanso entre turnos`;
+    case "RN06":
+      return `Mais de ${limite} dias seguidos`;
+    case "RN07":
+      return "7 dias seguidos sem folga";
+    case "RN02":
+      return "Trabalha em dia de ausência";
+    case "RN01":
+      return "Funcionário inativo";
+    case "conflito":
+      return "Dois turnos no mesmo dia";
+    default: {
+      const curta = REGRA_CURTA[regra] ?? regra;
+      return curta.charAt(0).toUpperCase() + curta.slice(1);
+    }
+  }
+}
 
 export const RAZAO_VAGA_VAZIA: Record<string, string> = {
   "ninguem-habilitado": "ninguém da equipe é habilitado neste turno",

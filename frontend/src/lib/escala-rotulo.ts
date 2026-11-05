@@ -4,7 +4,7 @@
 // precisam ser a mesma frase.
 
 type EscalaComPosto = {
-  posto?: { nome: string } | null;
+  posto?: { nome: string; empresa?: { nome: string } | null } | null;
   dataInic: string;
   dataFim: string;
 };
@@ -15,8 +15,10 @@ export function formatDataCurta(iso: string): string {
   return `${dia}-${mes}-${ano.slice(2)}`;
 }
 
-/** Ex: "Matriz 01-04-26 a 30-04-26". */
+/** Ex: "Matriz (Tozetto & Cia Ltda) 01-04-26 a 30-04-26". */
 export function rotuloEscala(escala: EscalaComPosto): string {
-  const posto = escala.posto?.nome?.trim() || "Escala";
+  const nome = escala.posto?.nome?.trim() || "Escala";
+  const empresa = escala.posto?.empresa?.nome?.trim();
+  const posto = empresa ? `${nome} (${empresa})` : nome;
   return `${posto} ${formatDataCurta(escala.dataInic)} a ${formatDataCurta(escala.dataFim)}`;
 }

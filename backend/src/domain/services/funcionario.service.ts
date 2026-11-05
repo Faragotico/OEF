@@ -10,6 +10,7 @@ import { TurnoRepository } from '../repositories/turno.repository';
 import { PostoTrabalhoRepository } from '../repositories/posto-trabalho.repository';
 import { CreateFuncionarioDto } from '../../infra/http/dtos/funcionario/create-funcionario.dto';
 import { UpdateFuncionarioDto } from '../../infra/http/dtos/funcionario/update-funcionario.dto';
+import { FindFuncionariosQueryDto } from '../../infra/http/dtos/funcionario/find-funcionarios-query.dto';
 
 // O service é o CÉREBRO. Ele aplica as regras de negócio e decide o
 // que fazer. Não sabe o que é uma requisição HTTP (isso é do
@@ -43,8 +44,62 @@ export class FuncionarioService {
     });
   }
 
+  // Lista completa (sem paginar): só pra preencher dropdowns e telas
+  // que precisam de todos os nomes (ausências, alocações, escalas).
   findAll() {
     return this.repository.findAll();
+  }
+
+  // Monta o filtro (where do Prisma) a partir da query string e busca
+  // só a página pedida — ver FuncionarioRepository.findAllPaginado.
+  async findAllPaginado(query: FindFuncionariosQueryDto) {
+    const page = query.page ?? 1;
+    // trim() tira espaços das pontas; "" (busca vazia) vira "sem filtro".
+    const busca = query.busca?.trim();
+    // Padrão: só ativos. É o que o gestor quer ver no dia a dia; quem
+    // saiu aparece escolhendo "Inativos" ou "Todos".
+    const status = query.status ?? 'ativo';
+
+    const where: Prisma.FuncionarioWhereInput = {};
+
+    if (status === 'ativo') where.status = true;
+    if (status === 'inativo') where.status = false;
+
+    if (query.postoId !== undefined) {
+      where.postoId = query.postoId;
+    }
+
+    if (busca) {
+      // Uma caixa de busca, quatro colunas: basta UMA bater (OR).
+      const condicoes: Prisma.FuncionarioWhereInput[] = [
+        { nome: { contains: busca, mode: 'insensitive' } },
+        { cargo: { contains: busca, mode: 'insensitive' } },
+        { telefone: { contains: busca, mode: 'insensitive' } },
+      ];
+
+      // O CPF é guardado só com dígitos. Se a pessoa digitar
+      // "394.284", tiramos a pontuação pra casar com o banco. Só entra
+      // na busca se sobrou algo: contains "" casa com TUDO.
+      const cpfBusca = busca.replace(/\D/g, '');
+      if (cpfBusca) {
+        condicoes.push({ cpf: { contains: cpfBusca } });
+      }
+
+      where.OR = condicoes;
+    }
+
+    const { data, total } = await this.repository.findAllPaginado(where, page);
+
+    return {
+      data,
+      total,
+      page,
+      // Math.max(1, ...) pra lista vazia mostrar "página 1 de 1".
+      totalPaginas: Math.max(
+        1,
+        Math.ceil(total / FuncionarioRepository.POR_PAGINA),
+      ),
+    };
   }
 
   async findOne(id: number) {

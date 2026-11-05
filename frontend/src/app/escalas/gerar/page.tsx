@@ -27,8 +27,8 @@ type Funcionario = {
 export default async function GerarEscalaPage() {
   const [postos, regras, funcionarios, turnos] = await Promise.all([
     apiGet<Posto[]>("/postos/opcoes"),
-    apiGet<Regra[]>("/regras"),
-    apiGet<Funcionario[]>("/funcionarios"),
+    apiGet<Regra[]>("/regras/opcoes"),
+    apiGet<Funcionario[]>("/funcionarios/opcoes"),
     apiGet<Turno[]>("/turnos/opcoes"),
   ]);
 

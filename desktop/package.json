@@ -1,0 +1,12 @@
+{
+  "name": "oef-desktop",
+  "version": "1.0.0",
+  "private": true,
+  "description": "OEF Sistema — Organizador de Escalas de Funcionários (versão desktop)",
+  "main": "main.js",
+  "scripts": {
+    "front:build": "pnpm --dir ../frontend build && node scripts/preparar-front.js",
+    "start": "electron .",
+    "dev": "electron . --dev"
+  }
+}

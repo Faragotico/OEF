@@ -21,8 +21,8 @@ export class AlocacaoController {
 
   @Post()
   async create(@Body() dto: CreateAlocacaoDto) {
-    const alocacao = await this.service.create(dto);
-    return AlocacaoPresenter.toHTTP(alocacao);
+    const { alocacao, aviso } = await this.service.create(dto);
+    return { ...AlocacaoPresenter.toHTTP(alocacao), aviso };
   }
 
   // Filtros e página vêm todos como query string:
@@ -51,8 +51,8 @@ export class AlocacaoController {
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: UpdateAlocacaoDto,
   ) {
-    const alocacao = await this.service.update(id, dto);
-    return AlocacaoPresenter.toHTTP(alocacao);
+    const { alocacao, aviso } = await this.service.update(id, dto);
+    return { ...AlocacaoPresenter.toHTTP(alocacao), aviso };
   }
 
   @Delete(':id')

@@ -1,4 +1,5 @@
 import { apiGet } from "@/lib/api-server";
+import { mesAtual } from "@/lib/periodo";
 import { AlocacoesFilter } from "@/components/alocacoes-filter";
 
 type Funcionario = { id: number; nome: string; coringa: boolean };
@@ -64,14 +65,29 @@ export default async function AlocacoesPage({
 }) {
   const params = await searchParams;
 
+  // Período padrão = do começo do mês atual em diante (sem data final):
+  // a tabela de alocações só cresce, e o gestor quase sempre quer o que
+  // está valendo ou vem pela frente. (Um "só o mês atual" esconderia a
+  // escala do mês que vem logo depois de gerada.) Só vale quando a URL
+  // não fala de datas: se a pessoa limpou os campos, a URL traz
+  // dataInicio= e dataFim= vazios (definidos, só sem valor) e aí
+  // significa "todo o período".
+  const urlTemPeriodo =
+    params.dataInicio !== undefined || params.dataFim !== undefined;
+  const filtros: SearchParams = {
+    ...params,
+    dataInicio: urlTemPeriodo ? (params.dataInicio ?? "") : mesAtual().inicio,
+    dataFim: urlTemPeriodo ? (params.dataFim ?? "") : "",
+  };
+
   // Funcionários/turnos/escalas continuam vindo por completo — são
   // listas limitadas (uma linha por cadastro, não por dia gerado), o
   // problema de escala era só a tabela de alocações.
   const [alocacoes, funcionarios, turnos, escalas] = await Promise.all([
-    apiGet<AlocacoesPaginadas>(`/alocacoes${paraQueryString(params)}`),
-    apiGet<Funcionario[]>("/funcionarios"),
+    apiGet<AlocacoesPaginadas>(`/alocacoes${paraQueryString(filtros)}`),
+    apiGet<Funcionario[]>("/funcionarios/opcoes"),
     apiGet<Turno[]>("/turnos/opcoes"),
-    apiGet<Escala[]>("/escalas"),
+    apiGet<Escala[]>("/escalas/opcoes"),
   ]);
 
   return (
@@ -91,7 +107,8 @@ export default async function AlocacoesPage({
           funcionarios={funcionarios}
           turnos={turnos}
           escalas={escalas}
-          filtrosAtuais={params}
+          filtrosAtuais={filtros}
+          periodoPersonalizado={urlTemPeriodo}
         />
       </div>
     </main>

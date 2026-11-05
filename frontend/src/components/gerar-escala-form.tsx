@@ -5,15 +5,23 @@ import Link from "next/link";
 import { apiPost } from "@/lib/api";
 import { EscalaGrid } from "@/components/escala-grid";
 import { Rotulo } from "@/components/rotulo";
+import { Aviso } from "@/components/aviso";
+import { Dica } from "@/components/dica";
+import { CartaoDiagnostico, ORDEM_NIVEL } from "@/components/cartao-diagnostico";
 import {
   type Diagnostico,
   MOTIVO_FOLGA,
   RAZAO_VAGA_VAZIA,
   REGRA_CURTA,
-  traduzir,
 } from "@/lib/diagnosticos";
+import { rotuloPosto } from "@/lib/posto-rotulo";
 
-type Posto = { id: number; nome: string; localizacao: string };
+type Posto = {
+  id: number;
+  nome: string;
+  localizacao: string;
+  empresa?: { nome: string } | null;
+};
 type Turno = {
   id: number;
   descricao: string | null;
@@ -225,32 +233,6 @@ function PreviaGrade({
   );
 }
 
-// Um diagnóstico por cartão, com a gravidade visível. Erro em vermelho
-// forte, aviso em âmbar, informação em cinza — antes tudo saía no mesmo
-// retângulo vermelho e o gestor não tinha como saber o que precisava de
-// ação e o que era só nota de rodapé.
-const ESTILO_NIVEL = {
-  erro: "bg-danger text-white",
-  aviso: "border border-warning/20 bg-warning/10 text-warning",
-  info: "border border-border bg-text/5 text-text-secondary",
-} as const;
-
-function CartaoDiagnostico({ diagnostico }: { diagnostico: Diagnostico }) {
-  const { nivel, titulo, detalhe, acao } = traduzir(diagnostico);
-  return (
-    <div className={`rounded-lg px-4 py-3 text-sm ${ESTILO_NIVEL[nivel]}`}>
-      <p className="font-bold">{titulo}</p>
-      <p className="mt-1 text-[13px] leading-snug opacity-90">{detalhe}</p>
-      {acao && (
-        <p className="mt-1.5 text-[13px] font-medium leading-snug">
-          <span className="uppercase tracking-wide opacity-70">o que fazer: </span>
-          {acao}
-        </p>
-      )}
-    </div>
-  );
-}
-
 export function GerarEscalaForm({
   postos,
   regras,
@@ -417,7 +399,7 @@ export function GerarEscalaForm({
           >
             {postos.map((p) => (
               <option key={p.id} value={p.id}>
-                {p.nome} — {p.localizacao}
+                {rotuloPosto(p)} — {p.localizacao}
               </option>
             ))}
           </select>
@@ -465,10 +447,10 @@ export function GerarEscalaForm({
             </div>
           </div>
         ) : (
-          <p className="rounded-lg bg-danger px-3 py-2 text-sm font-medium text-white">
-            Este posto não tem turno cadastrado. A escala é gerada a partir da grade de
-            horários do posto — cadastre os turnos na tela Turnos antes de gerar.
-          </p>
+          <Aviso
+            nivel="erro"
+            titulo="Este posto não tem turno cadastrado — cadastre os turnos na tela Turnos antes de gerar."
+          />
         )}
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -563,23 +545,18 @@ export function GerarEscalaForm({
           />
           <span>
             Deixar um titular cobrir turno que não é o dele
-            <span className="block text-xs text-zinc-500 dark:text-zinc-400">Desligado, cada pessoa fica no mesmo horário o mês inteiro.</span>
+            <Dica>Desligado, cada pessoa fica no mesmo horário o mês inteiro.</Dica>
           </span>
         </label>
 
         {previaDeCapacidade && previaDeCapacidade.vagasPorSemana > previaDeCapacidade.capacidadePorSemana && (
-          <p className="rounded-lg border border-warning/20 bg-warning/10 px-3 py-2 text-xs font-medium text-warning">
-            A grade pede ~{previaDeCapacidade.vagasPorSemana} coberturas por semana e a
-            equipe marcada dá conta de ~{previaDeCapacidade.capacidadePorSemana}. Algumas
-            vagas vão ficar vazias — simule antes de gerar pra ver quais.
-          </p>
+          <Aviso
+            nivel="aviso"
+            titulo={`A grade pede ~${previaDeCapacidade.vagasPorSemana} coberturas por semana e a equipe dá conta de ~${previaDeCapacidade.capacidadePorSemana}. Algumas vagas vão ficar vazias — simule antes de gerar.`}
+          />
         )}
 
-        {error && (
-          <p className="rounded-lg bg-danger px-3 py-2 text-sm font-medium text-white">
-            {error}
-          </p>
-        )}
+        {error && <Aviso nivel="erro" titulo={error} />}
 
         <div className="mt-2 flex flex-wrap gap-3">
           {/* Simular vem ANTES de gerar, e de propósito: planejar deixou
@@ -603,6 +580,11 @@ export function GerarEscalaForm({
             {carregando === "gerar" && <span className="spinner-square" aria-hidden />}
             {carregando === "gerar" ? "Gerando..." : "Gerar e salvar"}
           </button>
+          <span className="self-center">
+            <Dica alinhar="direita">
+              Simular mostra como a escala ficaria, sem salvar nada. Gerar e salvar cria a escala de verdade.
+            </Dica>
+          </span>
         </div>
       </form>
 
@@ -645,17 +627,17 @@ export function GerarEscalaForm({
 
           {resultado.diagnosticos
             .slice()
-            .sort((a, b) => (a.nivel === "erro" ? -1 : b.nivel === "erro" ? 1 : 0))
+            .sort((a, b) => ORDEM_NIVEL[a.nivel] - ORDEM_NIVEL[b.nivel])
             .map((d, i) => (
               <CartaoDiagnostico key={`${d.codigo}-${i}`} diagnostico={d} />
             ))}
 
           {vaziasPorTurno.length > 0 && (
-            <div className="rounded-lg border border-border bg-cobertura-bg px-4 py-3 text-sm text-cobertura-text">
-              <p className="font-bold">
-                {resultado.vagasVazias.length} vaga(s) ficaram sem ninguém
-              </p>
-              <ul className="mt-2 flex flex-col gap-1.5 text-[13px]">
+            <Aviso
+              nivel="aviso"
+              titulo={`${resultado.vagasVazias.length} vaga(s) ficaram sem ninguém`}
+            >
+              <ul className="flex flex-col gap-1.5">
                 {vaziasPorTurno.map(({ turno, dias, razoes }) => (
                   <li key={turno?.id ?? "?"}>
                     <span className="font-medium">
@@ -668,20 +650,21 @@ export function GerarEscalaForm({
                   </li>
                 ))}
               </ul>
-            </div>
+            </Aviso>
           )}
 
           {resultado.funcionariosSemTurno.length > 0 && (
-            <div className="rounded-lg border border-warning/20 bg-warning/10 px-4 py-3 text-sm text-warning">
-              Ficaram de fora por cadastro incompleto:{" "}
-              {resultado.funcionariosSemTurno.map((f) => f.nome).join(", ")}.
-            </div>
+            <Aviso
+              nivel="aviso"
+              titulo={`Ficaram de fora por cadastro incompleto: ${resultado.funcionariosSemTurno.map((f) => f.nome).join(", ")}.`}
+            />
           )}
 
           {resultado.feriadosNoPeriodo.length > 0 && (
-            <div className="rounded-lg border border-border bg-text/5 px-4 py-3 text-sm text-text-secondary">
-              Feriado(s) no período (sem escala): {resultado.feriadosNoPeriodo.join(", ")}.
-            </div>
+            <Aviso
+              nivel="info"
+              titulo={`Feriado(s) no período (sem escala): ${resultado.feriadosNoPeriodo.join(", ")}.`}
+            />
           )}
 
           {/* Simulação usa a grade só de leitura (não há alocação salva

@@ -102,7 +102,7 @@ export class AlocacaoService {
     // o comentário em RegrasTrabalhistasService.validarOuLancar; pra
     // isso existe "Validar escala" (UC06), que reexamina depois sem
     // travar nada.
-    await this.regras.validarOuLancar({
+    const aviso = await this.regras.validarOuLancar({
       funcionarioId: dto.funcionarioId,
       data,
       turnoId,
@@ -110,13 +110,14 @@ export class AlocacaoService {
     });
 
     try {
-      return await this.repository.create({
+      const alocacao = await this.repository.create({
         data,
         funcionarioId: dto.funcionarioId,
         escalaId: dto.escalaId,
         turnoId,
         ehSubstituido: dto.ehSubstituido,
       });
+      return { alocacao, aviso };
     } catch (error) {
       this.handlePrismaError(error);
     }
@@ -180,7 +181,7 @@ export class AlocacaoService {
     const data = dto.data ? normalizeDate(dto.data) : existente.data;
     const turnoId = await this.resolverTurnoId(dto, existente.turnoId);
 
-    await this.regras.validarOuLancar({
+    const aviso = await this.regras.validarOuLancar({
       funcionarioId: dto.funcionarioId ?? existente.funcionarioId,
       data,
       turnoId,
@@ -189,13 +190,14 @@ export class AlocacaoService {
     });
 
     try {
-      return await this.repository.update(id, {
+      const alocacao = await this.repository.update(id, {
         funcionarioId: dto.funcionarioId,
         escalaId: dto.escalaId,
         turnoId,
         ehSubstituido: dto.ehSubstituido,
         data: dto.data ? data : undefined,
       });
+      return { alocacao, aviso };
     } catch (error) {
       this.handlePrismaError(error);
     }

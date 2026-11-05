@@ -5,10 +5,13 @@ import { useRouter } from "next/navigation";
 import { apiPatch } from "@/lib/api";
 import { formatarTelefone } from "@/lib/telefone";
 import { Rotulo } from "@/components/rotulo";
+import { Aviso } from "@/components/aviso";
+import { StatusToggle } from "@/components/status-toggle";
 import {
   type CamposEscala,
   FuncionarioCamposEscala,
 } from "@/components/funcionario-campos-escala";
+import { rotuloPosto } from "@/lib/posto-rotulo";
 
 type Turno = {
   id: number;
@@ -18,7 +21,12 @@ type Turno = {
   postoId: number | null;
 };
 
-type Posto = { id: number; nome: string; localizacao: string };
+type Posto = {
+  id: number;
+  nome: string;
+  localizacao: string;
+  empresa?: { nome: string } | null;
+};
 
 export type ValoresFuncionario = {
   nome: string;
@@ -80,7 +88,7 @@ export function EditarFuncionarioForm({
       await apiPatch(`/funcionarios/${id}`, {
         nome: form.nome,
         telefone: form.telefone || undefined,
-        cargo: form.cargo,
+        cargo: form.cargo.trim() || null,
         cargaHorariaSemanal: Number(form.cargaHorariaSemanal),
         status: form.status,
         postoId: form.postoId ? Number(form.postoId) : null,
@@ -138,9 +146,10 @@ export function EditarFuncionarioForm({
       </label>
 
       <label className="flex flex-col gap-1 text-sm text-text">
-        <Rotulo obrigatorio>Cargo</Rotulo>
+        <Rotulo opcional dica="Só uma etiqueta do que a pessoa faz. Não altera a escala.">
+          Cargo
+        </Rotulo>
         <input
-          required
           minLength={2}
           maxLength={80}
           placeholder="Ex.: Operadora de Caixa"
@@ -193,7 +202,7 @@ export function EditarFuncionarioForm({
           <option value="">Sem posto definido</option>
           {postos.map((p) => (
             <option key={p.id} value={p.id}>
-              {p.nome} — {p.localizacao}
+              {rotuloPosto(p)} — {p.localizacao}
             </option>
           ))}
         </select>
@@ -206,19 +215,13 @@ export function EditarFuncionarioForm({
         onChange={setEscala}
       />
 
-      <label className="flex items-center gap-2 text-sm text-text">
-        <input
-          type="checkbox"
-          checked={form.status}
-          onChange={(e) => setForm({ ...form, status: e.target.checked })}
-        />
-        Ativo
-      </label>
+      <StatusToggle
+        value={form.status}
+        onChange={(status) => setForm({ ...form, status })}
+      />
 
       {error && (
-        <p className="rounded-lg bg-danger px-3 py-2 text-sm font-medium text-white">
-          {error}
-        </p>
+        <Aviso nivel="erro" titulo={error} />
       )}
 
       <button

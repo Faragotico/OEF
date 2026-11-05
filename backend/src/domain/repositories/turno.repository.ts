@@ -14,7 +14,7 @@ export class TurnoRepository {
   constructor(private readonly prisma: PrismaService) {}
 
   private readonly include = {
-    posto: true,
+    posto: { include: { empresa: true } },
     demandas: { orderBy: { diaSemana: 'asc' } },
   } satisfies Prisma.TurnoInclude;
 

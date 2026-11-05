@@ -5,7 +5,7 @@ import { formatDate } from './date.helpers';
 // continua sendo a chave; isto aqui é só o rótulo.
 
 type EscalaComPosto = {
-  posto?: { nome: string } | null;
+  posto?: { nome: string; empresa?: { nome: string } | null } | null;
   dataInic: Date;
   dataFim: Date;
 };
@@ -16,9 +16,11 @@ export function formatDataCurta(data: Date): string {
   return `${dia}-${mes}-${ano.slice(2)}`;
 }
 
-/** Ex: "Matriz 01-04-26 a 30-04-26". */
+/** Ex: "Matriz (Tozetto & Cia Ltda) 01-04-26 a 30-04-26". Só "Matriz 01-04-26…" se a empresa não veio. */
 export function rotuloEscala(escala: EscalaComPosto): string {
-  const posto = escala.posto?.nome?.trim() || 'Escala';
+  const nome = escala.posto?.nome?.trim() || 'Escala';
+  const empresa = escala.posto?.empresa?.nome?.trim();
+  const posto = empresa ? `${nome} (${empresa})` : nome;
   return `${posto} ${formatDataCurta(escala.dataInic)} a ${formatDataCurta(escala.dataFim)}`;
 }
 

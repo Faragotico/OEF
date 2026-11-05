@@ -236,7 +236,11 @@ export type CodigoDiagnostico =
   | 'interjornada-impossivel'
   | 'carga-semanal-estoura'
   | 'turno-sem-ninguem-habilitado'
-  | 'demanda-acima-da-equipe';
+  | 'demanda-acima-da-equipe'
+  // Só na validação de uma escala já salva (a geração não produz isso:
+  // ela nunca aloca além da demanda, e as vagas vazias têm aviso próprio).
+  | 'vagas-descobertas'
+  | 'cobertura-acima';
 
 export interface Diagnostico {
   codigo: CodigoDiagnostico;

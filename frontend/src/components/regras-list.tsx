@@ -1,11 +1,12 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
-import { useRouter } from "next/navigation";
+import { useState, type FormEvent, type ReactNode } from "react";
+import { usePathname, useRouter } from "next/navigation";
 import { apiPatch } from "@/lib/api";
 import { DeleteButton } from "@/components/delete-button";
 import { RegraForm } from "@/components/regra-form";
 import { Modal } from "@/components/modal";
+import { Paginacao } from "@/components/paginacao";
 
 type Regra = {
   id: number;
@@ -62,13 +63,55 @@ type EstadoModal =
     }
   | null;
 
-export function RegrasList({ regras }: { regras: Regra[] }) {
+const inputClass =
+  "rounded-md border border-border bg-card px-3 py-2 text-sm text-text";
+
+// `regras` é a lista COMPLETA (configurações gerais, regras antigas e o
+// rodízio padrão dos cards). `padroes` é só a página da tabela de
+// padrões de rodízio, já filtrada pelo backend; busca e troca de página
+// navegam pra uma nova URL (?busca=...&page=...).
+export function RegrasList({
+  regras,
+  padroes,
+  total,
+  page,
+  totalPaginas,
+  buscaAtual,
+}: {
+  regras: Regra[];
+  padroes: Regra[];
+  total: number;
+  page: number;
+  totalPaginas: number;
+  buscaAtual: string;
+}) {
   const router = useRouter();
+  const pathname = usePathname();
   const [modal, setModal] = useState<EstadoModal>(null);
   const [marcando, setMarcando] = useState<number | null>(null);
+  const [busca, setBusca] = useState(buscaAtual);
 
-  const padroesEscala = regras.filter((r) => r.tipo === "escala");
-  const rodizioPadrao = padroesEscala.find((r) => r.padrao);
+  const rodizioPadrao = regras.find((r) => r.tipo === "escala" && r.padrao);
+
+  function navegar(p: { busca?: string; page?: number }) {
+    const qs = new URLSearchParams();
+    if (p.busca) qs.set("busca", p.busca);
+    if (p.page && p.page > 1) qs.set("page", String(p.page));
+    const texto = qs.toString();
+    router.push(texto ? `${pathname}?${texto}` : pathname);
+  }
+
+  // Buscar sempre volta pra página 1 — senão dá pra ficar "perdido"
+  // numa página que não existe mais depois que a busca reduz o total.
+  function buscar(e: FormEvent) {
+    e.preventDefault();
+    navegar({ busca: busca.trim() });
+  }
+
+  function limpar() {
+    setBusca("");
+    router.push(pathname);
+  }
 
   async function marcarComoPadrao(id: number) {
     setMarcando(id);
@@ -230,6 +273,37 @@ export function RegrasList({ regras }: { regras: Regra[] }) {
           </button>
         </div>
 
+        <form onSubmit={buscar} className="mb-3 flex flex-wrap items-center gap-2">
+          <input
+            type="search"
+            value={busca}
+            onChange={(e) => setBusca(e.target.value)}
+            placeholder="Buscar por descrição ou ciclo (ex.: 5x1)"
+            aria-label="Buscar padrão de rodízio"
+            className={`min-w-64 flex-1 ${inputClass}`}
+          />
+          <button
+            type="submit"
+            className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-primary-hover"
+          >
+            Buscar
+          </button>
+          {buscaAtual && (
+            <button
+              type="button"
+              onClick={limpar}
+              className="rounded-lg border border-border bg-card px-3 py-2 text-sm font-semibold text-text transition-colors hover:bg-text/5"
+            >
+              Limpar
+            </button>
+          )}
+        </form>
+
+        <div className="mb-3 text-sm text-zinc-600 dark:text-zinc-400">
+          {total} padrão{total === 1 ? "" : "es"}
+          {total > 0 && ` · página ${page} de ${totalPaginas}`}
+        </div>
+
         <div className="overflow-x-auto rounded-lg border border-border bg-card">
           <table className="w-full border-collapse text-left text-sm">
             <thead className="border-b border-border bg-card">
@@ -240,7 +314,7 @@ export function RegrasList({ regras }: { regras: Regra[] }) {
               </tr>
             </thead>
             <tbody>
-              {padroesEscala.map((r) => (
+              {padroes.map((r) => (
                 <tr
                   key={r.id}
                   className="border-t border-border transition-colors hover:bg-text/5"
@@ -281,19 +355,27 @@ export function RegrasList({ regras }: { regras: Regra[] }) {
                   </td>
                 </tr>
               ))}
-              {padroesEscala.length === 0 && (
+              {padroes.length === 0 && (
                 <tr>
                   <td
                     colSpan={3}
                     className="px-4 py-6 text-center text-text-secondary"
                   >
-                    Nenhum padrão de rodízio cadastrado.
+                    {buscaAtual
+                      ? "Nenhum padrão encontrado com essa busca."
+                      : "Nenhum padrão de rodízio cadastrado."}
                   </td>
                 </tr>
               )}
             </tbody>
           </table>
         </div>
+
+        <Paginacao
+          page={page}
+          totalPaginas={totalPaginas}
+          onChange={(p) => navegar({ busca: buscaAtual, page: p })}
+        />
       </section>
 
       {antigas.length > 0 && (

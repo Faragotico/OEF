@@ -43,10 +43,14 @@ export class CreateFuncionarioDto {
   })
   telefone?: string;
 
+  // Opcional: o cargo é só uma informação sobre a pessoa, não muda a
+  // escala dela. @IsOptional() faz as validações abaixo serem puladas
+  // quando o campo não vem (ou vem null, ao limpar na edição).
+  @IsOptional()
   @IsString()
   @MinLength(2, { message: 'O cargo deve ter ao menos 2 caracteres.' })
   @MaxLength(80, { message: 'O cargo deve ter no máximo 80 caracteres.' })
-  cargo: string;
+  cargo?: string;
 
   @IsInt()
   @Min(1, { message: 'A carga semanal deve ser maior que zero.' })

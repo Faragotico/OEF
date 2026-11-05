@@ -1,6 +1,7 @@
 "use client";
 
 import { usePathname, useRouter } from "next/navigation";
+import { rotuloPosto } from "@/lib/posto-rotulo";
 
 type Funcionario = { id: number; nome: string; coringa: boolean };
 type Turno = {
@@ -13,7 +14,7 @@ type Escala = {
   id: number;
   dataInic: string;
   dataFim: string;
-  posto?: { nome: string };
+  posto?: { nome: string; empresa?: { nome: string } | null };
 };
 type Alocacao = {
   id: number;
@@ -43,7 +44,7 @@ function turnoLabel(t: Turno) {
 }
 
 function escalaLabel(e: Escala) {
-  const posto = e.posto?.nome ?? `posto #${e.id}`;
+  const posto = e.posto ? rotuloPosto(e.posto) : `posto #${e.id}`;
   return `#${e.id} — ${posto} (${e.dataInic} a ${e.dataFim})`;
 }
 
@@ -63,6 +64,7 @@ export function AlocacoesFilter({
   turnos,
   escalas,
   filtrosAtuais,
+  periodoPersonalizado,
 }: {
   alocacoes: Alocacao[];
   total: number;
@@ -72,6 +74,9 @@ export function AlocacoesFilter({
   turnos: Turno[];
   escalas: Escala[];
   filtrosAtuais: FiltrosAtuais;
+  // true quando a URL já traz datas (mesmo vazias): o período deixou de
+  // ser o padrão e o botão "Limpar filtros" faz sentido.
+  periodoPersonalizado: boolean;
 }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -84,9 +89,8 @@ export function AlocacoesFilter({
     !!filtrosAtuais.funcionarioId ||
     !!filtrosAtuais.turnoId ||
     !!filtrosAtuais.escalaId ||
-    !!filtrosAtuais.dataInicio ||
-    !!filtrosAtuais.dataFim ||
-    !!filtrosAtuais.substituido;
+    !!filtrosAtuais.substituido ||
+    periodoPersonalizado;
 
   // Troca um filtro e navega. Sempre volta pra página 1 — senão dá pra
   // ficar "perdido" numa página que não existe mais depois que um
@@ -106,12 +110,14 @@ export function AlocacoesFilter({
     if (params.funcionarioId) qs.set("funcionarioId", params.funcionarioId);
     if (params.turnoId) qs.set("turnoId", params.turnoId);
     if (params.escalaId) qs.set("escalaId", params.escalaId);
-    if (params.dataInicio) qs.set("dataInicio", params.dataInicio);
-    if (params.dataFim) qs.set("dataFim", params.dataFim);
+    // As duas datas vão SEMPRE pra URL, mesmo vazias: é o que diferencia
+    // "limpei o período" (todas as alocações) de "não escolhi nada
+    // ainda" (padrão do mês atual em diante) — ver a página.
+    qs.set("dataInicio", params.dataInicio ?? "");
+    qs.set("dataFim", params.dataFim ?? "");
     if (params.substituido) qs.set("substituido", params.substituido);
     if (params.page) qs.set("page", params.page);
-    const texto = qs.toString();
-    router.push(texto ? `${pathname}?${texto}` : pathname);
+    router.push(`${pathname}?${qs.toString()}`);
   }
 
   function limparFiltros() {

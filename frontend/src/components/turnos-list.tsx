@@ -6,6 +6,8 @@ import { DeleteButton } from "@/components/delete-button";
 import { TurnoForm } from "@/components/turno-form";
 import { Modal } from "@/components/modal";
 import { Paginacao } from "@/components/paginacao";
+import { rotuloPosto } from "@/lib/posto-rotulo";
+import { PostoNome } from "@/components/posto-nome";
 
 type Turno = {
   id: number;
@@ -13,11 +15,16 @@ type Turno = {
   horaInicio: string;
   horaFim: string;
   postoId: number | null;
-  posto?: { nome: string } | null;
+  posto?: { nome: string; empresa?: { nome: string } | null } | null;
   demandaPorDiaDaSemana: number[];
 };
 
-type Posto = { id: number; nome: string; localizacao: string };
+type Posto = {
+  id: number;
+  nome: string;
+  localizacao: string;
+  empresa?: { nome: string } | null;
+};
 
 type EstadoModal = { modo: "novo" } | { modo: "editar"; turno: Turno } | null;
 
@@ -131,7 +138,7 @@ export function TurnosList({
           <option value="">Todos os postos</option>
           {postos.map((p) => (
             <option key={p.id} value={p.id}>
-              {p.nome}
+              {rotuloPosto(p)}
             </option>
           ))}
         </select>
@@ -175,7 +182,9 @@ export function TurnosList({
                 className="border-t border-border transition-colors hover:bg-text/5"
               >
                 <td className="px-4 py-3">
-                  {t.posto?.nome ?? (
+                  {t.posto ? (
+                    <PostoNome posto={t.posto} />
+                  ) : (
                     <span className="text-xs italic text-zinc-400">avulso</span>
                   )}
                 </td>

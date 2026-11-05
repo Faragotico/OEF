@@ -19,6 +19,34 @@ export class RegraRepository {
     return this.prisma.regra.findMany({ orderBy: { tipo: 'asc' } });
   }
 
+  // Quantas regras por página. O corte acontece no banco: só as
+  // linhas da página pedida saem da consulta e viajam pela rede.
+  static readonly POR_PAGINA = 10;
+
+  async findAllPaginado(
+    where: Prisma.RegraWhereInput,
+    page: number,
+  ): Promise<{ data: Regra[]; total: number }> {
+    const take = RegraRepository.POR_PAGINA;
+    const skip = (page - 1) * take;
+
+    // Dados e total saem juntos e com o MESMO `where`, senão o total
+    // contaria regras que o filtro já descartou.
+    const [data, total] = await this.prisma.$transaction([
+      this.prisma.regra.findMany({
+        where,
+        // A marcada como padrão vem primeiro; `id` desempata pra a
+        // ordem não mudar entre uma página e outra.
+        orderBy: [{ padrao: 'desc' }, { valor: 'asc' }, { id: 'asc' }],
+        skip,
+        take,
+      }),
+      this.prisma.regra.count({ where }),
+    ]);
+
+    return { data, total };
+  }
+
   findById(id: number): Promise<Regra | null> {
     return this.prisma.regra.findUnique({ where: { id } });
   }

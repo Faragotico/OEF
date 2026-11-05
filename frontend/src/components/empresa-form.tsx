@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { apiPatch, apiPost } from "@/lib/api";
 import { formatarTelefone } from "@/lib/telefone";
 import { Rotulo } from "@/components/rotulo";
+import { Aviso } from "@/components/aviso";
 
 const inputClass =
   "rounded-md border border-border bg-card px-3 py-2 text-sm text-text";
@@ -94,7 +95,9 @@ export function EmpresaForm({
       </label>
 
       <label className="flex flex-col gap-1 text-sm text-text">
-        <Rotulo obrigatorio>CNPJ (14 caracteres alfanuméricos, sem máscara)</Rotulo>
+        <Rotulo obrigatorio dica="14 caracteres, letras e números, sem pontos nem barra.">
+          CNPJ
+        </Rotulo>
         <input
           required
           // maxLength alto de propósito, mesmo o campo sendo "sem
@@ -169,9 +172,7 @@ export function EmpresaForm({
       </div>
 
       {error && (
-        <p className="rounded-lg bg-danger px-3 py-2 text-sm font-medium text-white">
-          {error}
-        </p>
+        <Aviso nivel="erro" titulo={error} />
       )}
 
       <button

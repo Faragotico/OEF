@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { apiDelete } from "@/lib/api";
 import { Modal } from "@/components/modal";
+import { Aviso } from "@/components/aviso";
 
 // Botão de excluir reaproveitado em toda tela de listagem (empresas,
 // postos, turnos, regras, funcionários, ausências...). Confirma antes
@@ -66,9 +67,9 @@ export function DeleteButton({
           <p className="text-sm text-text">{confirmMessage}</p>
 
           {error && (
-            <p className="mt-4 rounded-lg bg-danger px-3 py-2 text-sm font-medium text-white">
-              {error}
-            </p>
+            <div className="mt-4">
+              <Aviso nivel="erro" titulo={error} />
+            </div>
           )}
 
           <div className="mt-6 flex justify-end gap-3">

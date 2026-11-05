@@ -8,6 +8,7 @@ import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../infra/database/prisma.service';
 import {
   type CodigoRegra,
+  type Diagnostico,
   type Dia,
   type Pessoa,
   type Turno as TurnoDominio,
@@ -17,6 +18,7 @@ import {
 } from '../escala/modelo';
 import { criarEstado, verificar } from '../escala/restricoes';
 import { auditar } from '../escala/auditoria';
+import { conferirCobertura, semDomingoDeFolga } from '../escala/conferencia';
 import { montarDias } from '../escala/periodo';
 import { DIAS_DE_HISTORICO } from '../escala/periodo';
 import {
@@ -259,13 +261,18 @@ export class RegrasTrabalhistasService {
    * uma correção legítima — cobrir à mão uma vaga que ficou vazia
    * porque estourava 44h na semana é decisão do gestor, não do sistema.
    * Quem quiser conferir depois usa "Validar Escala".
+   *
+   * Devolve o motivo da violação NÃO bloqueante (RN04–RN07), ou null se
+   * está tudo certo — o chamador repassa à tela como aviso (ex: cobrir
+   * um furo com alguém de outro posto que estoura a carga semanal).
    */
-  async validarOuLancar(ctx: ContextoAlocacao): Promise<void> {
+  async validarOuLancar(ctx: ContextoAlocacao): Promise<string | null> {
     const resultado = await this.validarAlocacao(ctx);
-    if (resultado.valido) return;
+    if (resultado.valido) return null;
     if (resultado.regra === 'FK') throw new NotFoundException(resultado.motivo);
     if (resultado.regra === 'conflito') throw new ConflictException(resultado.motivo);
     if (resultado.regra === 'RN03') throw new BadRequestException(resultado.motivo);
+    return resultado.motivo;
   }
 
   /**
@@ -292,8 +299,15 @@ export class RegrasTrabalhistasService {
     const fimIso = formatDate(escala.dataFim);
     const funcionarioIds = [...new Set(escala.alocacoes.map((a) => a.funcionarioId))];
 
-    const [intrajornada, interjornada, cargaSemanal, ausencias, historico] =
-      await Promise.all([
+    const [
+      intrajornada,
+      interjornada,
+      cargaSemanal,
+      ausencias,
+      historico,
+      turnosDoPosto,
+      trabalhadosNoPeriodo,
+    ] = await Promise.all([
         this.buscarIntervaloIntrajornada(),
         this.buscarIntervaloInterjornada(),
         this.buscarCargaHorariaSemanal(),
@@ -313,6 +327,21 @@ export class RegrasTrabalhistasService {
             },
           },
           include: { turno: true },
+        }),
+        // Grade de horários do posto, com a demanda por dia da semana —
+        // é com ela que se sabe se algum turno ficou sem ninguém.
+        this.prisma.turno.findMany({
+          where: { postoId: escala.postoId },
+          include: { demandas: true },
+        }),
+        // Dias trabalhados em QUALQUER escala (não só esta): quem cobre um
+        // furo aqui pode ter folgado o domingo no posto de origem.
+        this.prisma.alocacao.findMany({
+          where: {
+            funcionarioId: { in: funcionarioIds },
+            data: { gte: escala.dataInic, lte: escala.dataFim },
+          },
+          select: { funcionarioId: true, data: true },
         }),
       ]);
 
@@ -358,6 +387,15 @@ export class RegrasTrabalhistasService {
       nuncaNosDiasDaSemana: new Set<number>(),
     }));
 
+    // Valor que cada regra usa na frase ("passaria de 5 dias", "11h de
+    // intervalo"). Antes o motivo recebia o DIA no lugar disso, e saía
+    // "passaria de 2026-12-02 dias consecutivos".
+    const limitePorRegra: Record<string, number> = {
+      RN04: cargaSemanal,
+      RN05: interjornada,
+      RN06: Math.min(trabalho, 6),
+    };
+
     const violacoes = auditar(
       {
         dias: montarDias(inicioIso, fimIso),
@@ -396,18 +434,144 @@ export class RegrasTrabalhistasService {
       ]),
     );
 
+    // Conferências que não são regra trabalhista mas o gestor precisa
+    // saber — as MESMAS da geração (ver domain/escala/conferencia.ts).
+    const diagnosticos: Diagnostico[] = [];
+    const diasDoPeriodo = montarDias(inicioIso, fimIso);
+
+    const trabalhou = new Set(
+      trabalhadosNoPeriodo.map((a) => `${a.funcionarioId}|${formatDate(a.data)}`),
+    );
+    const semDomingo = semDomingoDeFolga(diasDoPeriodo, pessoas, (id, iso) =>
+      trabalhou.has(`${id}|${iso}`),
+    );
+    if (semDomingo.pessoas.length > 0) {
+      diagnosticos.push({
+        codigo: 'sem-domingo-de-folga',
+        nivel: 'aviso',
+        dados: {
+          pessoas: semDomingo.pessoas.map((p) => ({ id: p.id, nome: p.nome })),
+          domingosNoPeriodo: semDomingo.domingosNoPeriodo,
+          pessoasNoPosto: pessoas.length,
+        },
+      });
+    }
+
+    const chaveDoTurno = (inicio: number, fim: number) => `${inicio}-${fim}`;
+    const cobertura = new Map<string, number>();
+    for (const a of escala.alocacoes) {
+      const t = turnosPorId.get(a.turnoId);
+      if (!t) continue;
+      const chave = `${chaveDoTurno(t.inicio, t.fim)}|${formatDate(a.data)}`;
+      cobertura.set(chave, (cobertura.get(chave) ?? 0) + 1);
+    }
+    const conferencia = conferirCobertura(
+      diasDoPeriodo,
+      turnosDoPosto.map((t) => ({
+        chave: chaveDoTurno(horaDecimal(t.horaInicio), horaDecimal(t.horaFim)),
+        nome: t.descricao ?? `${formatTime(t.horaInicio)}–${formatTime(t.horaFim)}`,
+        // Turno sem demanda cadastrada pede 1 pessoa por dia (igual à geração).
+        demandaPorDiaDaSemana: Array.from(
+          { length: 7 },
+          (_, d) => t.demandas.find((x) => x.diaSemana === d)?.quantidade ?? 1,
+        ),
+      })),
+      cobertura,
+    );
+    if (conferencia.faltando.length > 0) {
+      diagnosticos.push({
+        codigo: 'vagas-descobertas',
+        nivel: 'aviso',
+        dados: { total: conferencia.totalFaltando, turnos: conferencia.faltando },
+      });
+    }
+    if (conferencia.sobrando.length > 0) {
+      diagnosticos.push({
+        codigo: 'cobertura-acima',
+        nivel: 'info',
+        dados: { total: conferencia.totalSobrando, turnos: conferencia.sobrando },
+      });
+    }
+
+    // Dia -> turno de cada pessoa (escala + histórico). A auditoria diz
+    // QUAL alocação quebrou QUAL regra, e só a primeira que falhou; pra
+    // contar a história inteira ("6 dias seguidos de 02/12 a 07/12",
+    // "9h45 de descanso entre 06/12 e 07/12") a tela precisa da sequência
+    // real, que sai daqui.
+    const turnoPorDia = new Map<number, Map<string, number>>();
+    for (const a of [...historico, ...escala.alocacoes]) {
+      const mapa = turnoPorDia.get(a.funcionarioId) ?? new Map<string, number>();
+      mapa.set(formatDate(a.data), a.turnoId);
+      turnoPorDia.set(a.funcionarioId, mapa);
+    }
+
+    const detalhar = (v: (typeof violacoes)[number]) => {
+      const dias = turnoPorDia.get(v.pessoaId);
+      if (!dias) return null;
+
+      if (v.regra === 'RN06' || v.regra === 'RN07') {
+        let inicio = v.diaIso;
+        while (dias.has(desloca(inicio, -1))) inicio = desloca(inicio, -1);
+        let fim = inicio;
+        let total = 1;
+        while (dias.has(desloca(fim, 1))) {
+          fim = desloca(fim, 1);
+          total++;
+        }
+        return { tipo: 'corrida' as const, inicio, fim, dias: total };
+      }
+
+      if (v.regra === 'RN05') {
+        const turno = turnosPorId.get(v.turnoId);
+        if (!turno) return null;
+        const ontem = turnosPorId.get(dias.get(desloca(v.diaIso, -1)) ?? -1);
+        if (ontem) {
+          const horas = 24 - ontem.fim + turno.inicio;
+          if (horas < interjornada) {
+            return {
+              tipo: 'descanso' as const,
+              de: desloca(v.diaIso, -1),
+              para: v.diaIso,
+              horas,
+            };
+          }
+        }
+        const amanha = turnosPorId.get(dias.get(desloca(v.diaIso, 1)) ?? -1);
+        if (amanha) {
+          const horas = 24 - turno.fim + amanha.inicio;
+          if (horas < interjornada) {
+            return {
+              tipo: 'descanso' as const,
+              de: v.diaIso,
+              para: desloca(v.diaIso, 1),
+              horas,
+            };
+          }
+        }
+      }
+      return null;
+    };
+
     return {
       escalaId,
       totalAlocacoes: escala.alocacoes.length,
       valida: violacoes.length === 0,
-      violacoes: violacoes.map((v) => ({
-        alocacaoId: idPorChave.get(`${v.pessoaId}|${v.diaIso}|${v.turnoId}`) ?? null,
-        funcionarioId: v.pessoaId,
-        funcionario: nomePorId.get(v.pessoaId) ?? `#${v.pessoaId}`,
-        data: v.diaIso,
-        regra: v.regra,
-        motivo: MOTIVO[v.regra](nomePorId.get(v.pessoaId) ?? `#${v.pessoaId}`, v.diaIso),
-      })),
+      diagnosticos,
+      violacoes: violacoes.map((v) => {
+        const nome = nomePorId.get(v.pessoaId) ?? `#${v.pessoaId}`;
+        const limite = limitePorRegra[v.regra] ?? null;
+        return {
+          alocacaoId:
+            idPorChave.get(`${v.pessoaId}|${v.diaIso}|${v.turnoId}`) ?? null,
+          funcionarioId: v.pessoaId,
+          funcionario: nome,
+          data: v.diaIso,
+          regra: v.regra,
+          limite,
+          detalhe: detalhar(v),
+          motivo: MOTIVO[v.regra](nome, limite !== null ? String(limite) : v.diaIso),
+        };
+      }),
     };
   }
 

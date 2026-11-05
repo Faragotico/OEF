@@ -1,6 +1,7 @@
 "use client";
 
 import { Rotulo } from "@/components/rotulo";
+import { Dica } from "@/components/dica";
 
 type Turno = {
   id: number;
@@ -101,12 +102,15 @@ export function FuncionarioCamposEscala({
         />
         <span>
           É coringa (sem horário de casa)
+          <Dica>Coringa não tem horário fixo: cobre a folga dos titulares nos turnos marcados abaixo.</Dica>
         </span>
       </label>
 
       {!valor.coringa && (
         <label className="flex flex-col gap-1 text-sm text-text">
-          <Rotulo opcional>Turno de casa</Rotulo>
+          <Rotulo opcional dica="Horário em que a geração escala esta pessoa.">
+            Turno de casa
+          </Rotulo>
           <select
             value={valor.turnoPadraoId}
             onChange={(e) => onChange({ ...valor, turnoPadraoId: e.target.value })}
@@ -120,16 +124,19 @@ export function FuncionarioCamposEscala({
               </option>
             ))}
           </select>
-          <span className="text-xs text-zinc-500 dark:text-zinc-400">Horário em que a geração escala esta pessoa.</span>
         </label>
       )}
 
       <fieldset className="flex flex-col gap-1.5 text-sm text-text">
         <legend className="mb-1">
           {valor.coringa ? (
-            <Rotulo obrigatorio>Turnos que este coringa cobre</Rotulo>
+            <Rotulo obrigatorio dica="Coringa precisa de pelo menos um turno.">
+              Turnos que este coringa cobre
+            </Rotulo>
           ) : (
-            <Rotulo opcional>Também pode cobrir</Rotulo>
+            <Rotulo opcional dica="Vale só se a geração permitir cobrir outro turno.">
+              Também pode cobrir
+            </Rotulo>
           )}
         </legend>
         {turnosDoPosto.length === 0 ? (
@@ -152,16 +159,13 @@ export function FuncionarioCamposEscala({
             ))}
           </div>
         )}
-        <span className="text-xs text-zinc-500 dark:text-zinc-400">
-          {valor.coringa
-            ? "Coringa precisa de pelo menos um turno."
-            : "Vale só se a geração permitir cobrir outro turno."}
-        </span>
       </fieldset>
 
       <fieldset className="flex flex-col gap-1.5 text-sm text-text">
         <legend className="mb-1">
-          <Rotulo opcional>Nunca trabalha em</Rotulo>
+          <Rotulo opcional dica="Dias da semana em que a geração nunca escala esta pessoa.">
+            Nunca trabalha em
+          </Rotulo>
         </legend>
         <div className="flex flex-wrap gap-1.5">
           {DIAS.map((nome, dia) => {

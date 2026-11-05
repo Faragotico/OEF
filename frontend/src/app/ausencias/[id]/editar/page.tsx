@@ -19,7 +19,7 @@ export default async function EditarAusenciaPage({
   const { id } = await params;
   const [ausencia, funcionarios] = await Promise.all([
     apiGet<Ausencia>(`/ausencias/${id}`),
-    apiGet<Funcionario[]>("/funcionarios"),
+    apiGet<Funcionario[]>("/funcionarios/opcoes"),
   ]);
 
   return (

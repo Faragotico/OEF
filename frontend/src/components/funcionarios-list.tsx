@@ -1,10 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type FormEvent } from "react";
+import { usePathname, useRouter } from "next/navigation";
 import { DeleteButton } from "@/components/delete-button";
 import { NovoFuncionarioForm } from "@/components/novo-funcionario-form";
 import { EditarFuncionarioForm } from "@/components/editar-funcionario-form";
 import { Modal } from "@/components/modal";
+import { Paginacao } from "@/components/paginacao";
+import { rotuloPosto } from "@/lib/posto-rotulo";
+import { PostoNome } from "@/components/posto-nome";
 
 type Turno = {
   id: number;
@@ -14,14 +18,19 @@ type Turno = {
   postoId: number | null;
 };
 
-type Posto = { id: number; nome: string; localizacao: string };
+type Posto = {
+  id: number;
+  nome: string;
+  localizacao: string;
+  empresa?: { nome: string } | null;
+};
 
 type Funcionario = {
   id: number;
   nome: string;
   cpf: string;
   telefone: string | null;
-  cargo: string;
+  cargo: string | null;
   cargaHorariaSemanal: number;
   status: boolean;
   turnoPadraoId: number | null;
@@ -40,7 +49,7 @@ type Funcionario = {
   turnosHabilitadosIds: number[];
   diasSemanaVetados: number[];
   postoId: number | null;
-  posto?: { nome: string } | null;
+  posto?: { nome: string; empresa?: { nome: string } | null } | null;
 };
 
 const DIAS = ["dom", "seg", "ter", "qua", "qui", "sex", "sáb"];
@@ -57,16 +66,71 @@ function turnoPadraoLabel(f: Funcionario) {
     : `${f.turnoPadrao.horaInicio}–${f.turnoPadrao.horaFim}`;
 }
 
+const inputClass =
+  "rounded-md border border-border bg-card px-3 py-2 text-sm text-text";
+
+// Recebe a página já filtrada pelo backend; busca, filtros e troca de
+// página navegam pra uma nova URL (?busca=...&postoId=...&status=...&page=...).
 export function FuncionariosList({
   funcionarios,
+  total,
+  page,
+  totalPaginas,
   turnos,
   postos,
+  buscaAtual,
+  postoIdAtual,
+  statusAtual,
 }: {
   funcionarios: Funcionario[];
+  total: number;
+  page: number;
+  totalPaginas: number;
   turnos: Turno[];
   postos: Posto[];
+  buscaAtual: string;
+  postoIdAtual: string;
+  statusAtual: string;
 }) {
+  const router = useRouter();
+  const pathname = usePathname();
   const [modal, setModal] = useState<EstadoModal>(null);
+  const [busca, setBusca] = useState(buscaAtual);
+  // "ativo" é o padrão da lista: só conta como filtro ligado quando é outro.
+  const filtrosAtivos = !!buscaAtual || !!postoIdAtual || statusAtual !== "ativo";
+
+  function navegar(p: {
+    busca?: string;
+    postoId?: string;
+    status?: string;
+    page?: number;
+  }) {
+    const qs = new URLSearchParams();
+    if (p.busca) qs.set("busca", p.busca);
+    if (p.postoId) qs.set("postoId", p.postoId);
+    // O padrão ("ativo") não precisa ir pra URL.
+    if (p.status && p.status !== "ativo") qs.set("status", p.status);
+    if (p.page && p.page > 1) qs.set("page", String(p.page));
+    const texto = qs.toString();
+    router.push(texto ? `${pathname}?${texto}` : pathname);
+  }
+
+  // Mudar filtro sempre volta pra página 1 — senão dá pra ficar
+  // "perdido" numa página que não existe mais depois que o filtro
+  // reduz o total.
+  function buscar(e: FormEvent) {
+    e.preventDefault();
+    navegar({
+      busca: busca.trim(),
+      postoId: postoIdAtual,
+      status: statusAtual,
+    });
+  }
+
+  function limpar() {
+    setBusca("");
+    router.push(pathname);
+  }
 
   return (
     <>
@@ -83,6 +147,71 @@ export function FuncionariosList({
         >
           + Novo Funcionário
         </button>
+      </div>
+
+      <form onSubmit={buscar} className="mb-4 flex flex-wrap items-center gap-2">
+        <input
+          type="search"
+          value={busca}
+          onChange={(e) => setBusca(e.target.value)}
+          placeholder="Buscar por nome, CPF, telefone ou cargo"
+          className={`min-w-64 flex-1 ${inputClass}`}
+        />
+        <select
+          value={postoIdAtual}
+          onChange={(e) =>
+            navegar({
+              busca: busca.trim(),
+              postoId: e.target.value,
+              status: statusAtual,
+            })
+          }
+          className={inputClass}
+          aria-label="Filtrar por posto"
+        >
+          <option value="">Todos os postos</option>
+          {postos.map((p) => (
+            <option key={p.id} value={p.id}>
+              {rotuloPosto(p)}
+            </option>
+          ))}
+        </select>
+        <select
+          value={statusAtual}
+          onChange={(e) =>
+            navegar({
+              busca: busca.trim(),
+              postoId: postoIdAtual,
+              status: e.target.value,
+            })
+          }
+          className={inputClass}
+          aria-label="Filtrar por status"
+        >
+          <option value="ativo">Ativos</option>
+          <option value="inativo">Inativos</option>
+          <option value="todos">Todos</option>
+        </select>
+        <button
+          type="submit"
+          className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-primary-hover"
+        >
+          Buscar
+        </button>
+        {filtrosAtivos && (
+          <button
+            type="button"
+            onClick={limpar}
+            className="rounded-lg border border-border bg-card px-3 py-2 text-sm font-semibold text-text transition-colors hover:bg-text/5"
+          >
+            Limpar
+          </button>
+        )}
+      </form>
+
+      <div className="mb-3 text-sm text-zinc-600 dark:text-zinc-400">
+        {total} funcionário{total === 1 ? "" : "s"}
+        {total > 0 && ` · página ${page} de ${totalPaginas}`}
       </div>
 
       <div className="overflow-x-auto rounded-lg border border-border bg-card">
@@ -109,10 +238,12 @@ export function FuncionariosList({
                 <td className="px-4 py-3">{f.nome}</td>
                 <td className="px-4 py-3">{f.cpf}</td>
                 <td className="px-4 py-3">{f.telefone}</td>
-                <td className="px-4 py-3">{f.cargo}</td>
+                <td className="px-4 py-3">{f.cargo ?? "—"}</td>
                 <td className="px-4 py-3">{f.cargaHorariaSemanal}h</td>
                 <td className="px-4 py-3">
-                  {f.posto?.nome ?? (
+                  {f.posto ? (
+                    <PostoNome posto={f.posto} />
+                  ) : (
                     <span className="text-xs text-zinc-500 dark:text-zinc-400">
                       sem posto
                     </span>
@@ -167,9 +298,34 @@ export function FuncionariosList({
                 </td>
               </tr>
             ))}
+            {funcionarios.length === 0 && (
+              <tr>
+                <td
+                  colSpan={9}
+                  className="px-4 py-6 text-center text-zinc-500 dark:text-zinc-400"
+                >
+                  {filtrosAtivos
+                    ? "Nenhum funcionário encontrado com esses filtros."
+                    : "Nenhum funcionário cadastrado."}
+                </td>
+              </tr>
+            )}
           </tbody>
         </table>
       </div>
+
+      <Paginacao
+        page={page}
+        totalPaginas={totalPaginas}
+        onChange={(p) =>
+          navegar({
+            busca: buscaAtual,
+            postoId: postoIdAtual,
+            status: statusAtual,
+            page: p,
+          })
+        }
+      />
 
       {modal?.modo === "novo" && (
         <Modal title="Novo Funcionário" onClose={() => setModal(null)}>
@@ -191,7 +347,7 @@ export function FuncionariosList({
               nome: modal.funcionario.nome,
               cpf: modal.funcionario.cpf,
               telefone: modal.funcionario.telefone ?? "",
-              cargo: modal.funcionario.cargo,
+              cargo: modal.funcionario.cargo ?? "",
               cargaHorariaSemanal: modal.funcionario.cargaHorariaSemanal,
               status: modal.funcionario.status,
               turnoPadraoId: modal.funcionario.turnoPadraoId

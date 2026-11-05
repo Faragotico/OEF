@@ -4,6 +4,7 @@ import { apiGet, API_URL } from "@/lib/api-server";
 import { EscalaGrid } from "@/components/escala-grid";
 import { ValidarEscalaButton } from "@/components/validar-escala-button";
 import { rotuloEscala } from "@/lib/escala-rotulo";
+import { rotuloPosto } from "@/lib/posto-rotulo";
 
 type Turno = {
   id: number;
@@ -16,7 +17,7 @@ type Escala = {
   dataInic: string;
   dataFim: string;
   postoId: number;
-  posto?: { nome: string; localizacao: string };
+  posto?: { nome: string; localizacao: string; empresa?: { nome: string } | null };
   regra?: { descricao: string; valor: string };
 };
 type Funcionario = {
@@ -25,6 +26,7 @@ type Funcionario = {
   coringa: boolean;
   turnoPadrao: Turno | null;
   postoId: number | null;
+  posto: { nome: string; empresa?: { nome: string } | null } | null;
   status: boolean;
 };
 type Alocacao = {
@@ -79,10 +81,10 @@ export default async function EscalaDetalhePage({
   }
 
   const [funcionarios, turnos, regras, alocacoesDaEscala] = await Promise.all([
-    apiGet<Funcionario[]>("/funcionarios"),
+    apiGet<Funcionario[]>("/funcionarios/opcoes"),
     // Só os turnos DESTE posto (antes vinha todo turno do sistema).
     apiGet<Turno[]>(`/turnos/opcoes?postoId=${escala.postoId}`),
-    apiGet<Regra[]>("/regras"),
+    apiGet<Regra[]>("/regras/opcoes"),
     buscarTodasAlocacoesDaEscala(Number(id)),
   ]);
 
@@ -104,10 +106,30 @@ export default async function EscalaDetalhePage({
   const idsComAlocacao = new Set(
     alocacoesDaEscala.map((a) => a.funcionarioId),
   );
-  const funcionariosDaEscala = funcionarios.filter(
-    (f) =>
-      (f.status && f.postoId === escala.postoId) || idsComAlocacao.has(f.id),
-  );
+  // "externo" = é de outro posto (cobrindo um furo): a coluna mostra "de
+  // {posto}" em vez do turno padrão.
+  const paraGrade = (f: Funcionario) => ({
+    id: f.id,
+    nome: f.nome,
+    coringa: f.coringa,
+    turnoPadrao: f.turnoPadrao,
+    externo: f.postoId !== escala.postoId,
+    postoNome: f.posto?.nome ?? null,
+    postoRotulo: f.posto ? rotuloPosto(f.posto) : null,
+  });
+  const funcionariosDaEscala = funcionarios
+    .filter(
+      (f) =>
+        (f.status && f.postoId === escala.postoId) || idsComAlocacao.has(f.id),
+    )
+    .map(paraGrade);
+
+  // Quem pode ser trazido pra cobrir um furo: ativo e ainda fora da grade
+  // (ou seja, de outro posto ou sem posto).
+  const idsNaGrade = new Set(funcionariosDaEscala.map((f) => f.id));
+  const candidatosExternos = funcionarios
+    .filter((f) => f.status && !idsNaGrade.has(f.id))
+    .map(paraGrade);
 
   return (
     <main className="min-h-screen bg-background px-8 py-8">
@@ -132,18 +154,17 @@ export default async function EscalaDetalhePage({
               {escala.posto?.localizacao ? ` · ${escala.posto.localizacao}` : ""}
             </p>
           </div>
-          <div className="flex items-center gap-2">
+          <ValidarEscalaButton escalaId={escala.id}>
             <a
               href={`${API_URL}/escalas/${escala.id}/pdf`}
               className="rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-primary-hover"
             >
               Gerar PDF ↓
             </a>
-            <ValidarEscalaButton escalaId={escala.id} />
-          </div>
+          </ValidarEscalaButton>
         </div>
 
-        {funcionariosDaEscala.length === 0 ? (
+        {funcionariosDaEscala.length === 0 && candidatosExternos.length === 0 ? (
           <p className="text-sm text-zinc-500 dark:text-zinc-400">Nenhum funcionário para mostrar. Vincule a equipe ao posto no cadastro de funcionários.</p>
         ) : (
           <EscalaGrid
@@ -154,6 +175,7 @@ export default async function EscalaDetalhePage({
             alocacoes={alocacoesDaEscala}
             escalaId={escala.id}
             intervaloIntrajornadaHoras={intervaloIntrajornadaHoras}
+            candidatosExternos={candidatosExternos}
           />
         )}
       </div>

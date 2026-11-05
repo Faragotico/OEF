@@ -20,7 +20,7 @@ export class FuncionarioRepository {
 
   private readonly include = {
     turnoPadrao: true,
-    posto: true,
+    posto: { include: { empresa: true } },
     habilitacoes: true,
   };
 
@@ -33,6 +33,35 @@ export class FuncionarioRepository {
       orderBy: { nome: 'asc' },
       include: this.include,
     });
+  }
+
+  // Quantos funcionários por página. O corte acontece no banco: só as
+  // linhas da página pedida saem da consulta e viajam pela rede.
+  static readonly POR_PAGINA = 10;
+
+  async findAllPaginado(
+    where: Prisma.FuncionarioWhereInput,
+    page: number,
+  ): Promise<{ data: Funcionario[]; total: number }> {
+    const take = FuncionarioRepository.POR_PAGINA;
+    const skip = (page - 1) * take;
+
+    // Dados e total saem juntos e com o MESMO `where`, senão o total
+    // contaria funcionários que o filtro já descartou.
+    const [data, total] = await this.prisma.$transaction([
+      this.prisma.funcionario.findMany({
+        where,
+        // `id` desempata nomes iguais, pra a ordem não mudar entre
+        // uma página e outra.
+        orderBy: [{ nome: 'asc' }, { id: 'asc' }],
+        skip,
+        take,
+        include: this.include,
+      }),
+      this.prisma.funcionario.count({ where }),
+    ]);
+
+    return { data, total };
   }
 
   findById(id: number): Promise<Funcionario | null> {

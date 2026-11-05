@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import { apiDelete, apiPatch, apiPost } from "@/lib/api";
+import { Aviso } from "@/components/aviso";
+import { Dica } from "@/components/dica";
 
 type Turno = {
   id: number;
@@ -14,6 +16,14 @@ type FuncionarioGrid = {
   nome: string;
   coringa: boolean;
   turnoPadrao: Turno | null;
+  // Funcionário de OUTRO posto cobrindo um furo desta escala. A coluna
+  // dele mostra "de {posto}" no lugar do turno padrão (que é do posto
+  // de origem e não vale aqui).
+  externo?: boolean;
+  postoNome?: string | null;
+  // "Posto · Empresa" — só pro seletor de externos, onde o nome do posto
+  // sozinho pode ser ambíguo.
+  postoRotulo?: string | null;
 };
 type AlocacaoGrid = {
   id: number;
@@ -25,7 +35,12 @@ type AlocacaoGrid = {
 // include: { turno: true }) — usamos isso só quando o turno é um
 // "horário personalizado" recém-criado, pra já saber exibir ele sem
 // precisar recarregar a página inteira.
-type AlocacaoApiResponse = AlocacaoGrid & { turno?: Turno };
+// `aviso` = violação de regra trabalhista que NÃO bloqueou o salvamento
+// (ex: estourou a carga semanal) — a tela só mostra, não impede.
+type AlocacaoApiResponse = AlocacaoGrid & {
+  turno?: Turno;
+  aviso?: string | null;
+};
 
 const DIAS_SEMANA = ["dom", "seg", "ter", "qua", "qui", "sex", "sáb"];
 
@@ -117,6 +132,7 @@ export function EscalaGrid({
   folgaMotivos,
   escalaId,
   intervaloIntrajornadaHoras = 1,
+  candidatosExternos = [],
 }: {
   dataInicio: string;
   dataFim: string;
@@ -132,6 +148,9 @@ export function EscalaGrid({
   // busca /regras; se não vier, assume 1h pra bater com o padrão do
   // backend quando a regra não está cadastrada.
   intervaloIntrajornadaHoras?: number;
+  // Funcionários ativos de outros postos que podem ser trazidos como
+  // coluna pra cobrir um furo.
+  candidatosExternos?: FuncionarioGrid[];
 }) {
   const [alocacoesState, setAlocacoesState] = useState(alocacoes);
   // Turnos conhecidos pela grade — começa com os cadastrados, e ganha
@@ -149,6 +168,11 @@ export function EscalaGrid({
   const [horaFimCustom, setHoraFimCustom] = useState("");
   const [salvando, setSalvando] = useState(false);
   const [erroCelula, setErroCelula] = useState<string | null>(null);
+  const [avisoCelula, setAvisoCelula] = useState<string | null>(null);
+  // Externos que o gestor trouxe agora (ainda sem alocação, então não
+  // vieram do servidor) e o que está escolhido no seletor.
+  const [extrasIds, setExtrasIds] = useState<number[]>([]);
+  const [candidatoSelecionado, setCandidatoSelecionado] = useState("");
 
   // Fecha a edição de uma célula e limpa qualquer estado de horário
   // personalizado que tivesse ficado pra trás.
@@ -193,8 +217,20 @@ export function EscalaGrid({
   // fica mais fácil acompanhar a cobertura ao longo do dia (relevante
   // sobretudo em postos com vários horários, tipo abertura/meio/
   // fechamento) do que na ordem em que os funcionários foram marcados.
-  const funcionariosOrdenados = [...funcionarios].sort((a, b) => {
-    if (a.coringa !== b.coringa) return a.coringa ? 1 : -1;
+  // Externos (de outro posto) ficam depois de todo mundo.
+  const extras = candidatosExternos.filter((c) => extrasIds.includes(c.id));
+  const candidatosRestantes = candidatosExternos.filter(
+    (c) => !extrasIds.includes(c.id),
+  );
+  const candidatosPorPosto = new Map<string, FuncionarioGrid[]>();
+  for (const c of candidatosRestantes) {
+    const posto = c.postoRotulo ?? c.postoNome ?? "Sem posto";
+    candidatosPorPosto.set(posto, [...(candidatosPorPosto.get(posto) ?? []), c]);
+  }
+
+  const peso = (f: FuncionarioGrid) => (f.externo ? 2 : f.coringa ? 1 : 0);
+  const funcionariosOrdenados = [...funcionarios, ...extras].sort((a, b) => {
+    if (peso(a) !== peso(b)) return peso(a) - peso(b);
     return (a.turnoPadrao?.horaInicio ?? "").localeCompare(
       b.turnoPadrao?.horaInicio ?? "",
     );
@@ -217,12 +253,22 @@ export function EscalaGrid({
     return { ...f, alocacaoPorDia, horasNoPeriodo };
   });
 
-  if (dias.length === 0 || colunas.length === 0) {
+  if (dias.length === 0) {
     return (
       <p className="text-sm text-zinc-500 dark:text-zinc-400">
         Sem dados suficientes para montar a grade.
       </p>
     );
+  }
+
+  function adicionarExterno() {
+    if (!candidatoSelecionado) return;
+    setExtrasIds((prev) => [...prev, Number(candidatoSelecionado)]);
+    setCandidatoSelecionado("");
+  }
+
+  function removerExterno(id: number) {
+    setExtrasIds((prev) => prev.filter((x) => x !== id));
   }
 
   // Registra na grade um turno que voltou junto da resposta da API
@@ -247,6 +293,7 @@ export function EscalaGrid({
   ) {
     setSalvando(true);
     setErroCelula(null);
+    setAvisoCelula(null);
     try {
       if (valorEscolhido === "folga") {
         if (atual) {
@@ -265,6 +312,7 @@ export function EscalaGrid({
             turnoPayload,
           );
           registrarTurnoNovo(atualizada.turno);
+          setAvisoCelula(atualizada.aviso ?? null);
           setAlocacoesState((prev) =>
             prev.map((a) =>
               a.id === atual.id ? { ...a, turnoId: atualizada.turnoId } : a,
@@ -278,6 +326,7 @@ export function EscalaGrid({
             ...turnoPayload,
           });
           registrarTurnoNovo(criada.turno);
+          setAvisoCelula(criada.aviso ?? null);
           setAlocacoesState((prev) => [...prev, criada]);
         }
       }
@@ -293,12 +342,49 @@ export function EscalaGrid({
 
   return (
     <div className="flex flex-col gap-2">
-      <p className="text-xs text-zinc-500 dark:text-zinc-400">Clique numa célula para alterar manualmente.</p>
+      <p className="flex items-center text-xs text-zinc-500 dark:text-zinc-400">
+        Clique numa célula para alterar manualmente.
+        <Dica>
+          F = folga. Ponto (·) = trabalha no turno padrão. Horário colorido = turno diferente do padrão (troca, substituição ou coringa).
+        </Dica>
+      </p>
 
-      {erroCelula && (
-        <p className="rounded-lg bg-danger px-3 py-2 text-sm font-medium text-white">
-          {erroCelula}
-        </p>
+      {candidatosRestantes.length > 0 && (
+        <div className="flex flex-wrap items-center gap-2">
+          <select
+            value={candidatoSelecionado}
+            onChange={(e) => setCandidatoSelecionado(e.target.value)}
+            className="rounded-md border border-border bg-card px-2 py-1.5 text-sm text-text"
+          >
+            <option value="">Cobrir com funcionário de outro posto…</option>
+            {[...candidatosPorPosto].map(([posto, lista]) => (
+              <optgroup key={posto} label={posto}>
+                {lista.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.nome}
+                  </option>
+                ))}
+              </optgroup>
+            ))}
+          </select>
+          <button
+            type="button"
+            disabled={!candidatoSelecionado}
+            onClick={adicionarExterno}
+            className="rounded-md bg-primary px-3 py-1.5 text-sm font-semibold text-white hover:bg-primary-hover disabled:opacity-50"
+          >
+            Adicionar
+          </button>
+          <Dica>
+            Traz alguém de outro posto como uma coluna, pra cobrir um furo. Se alguma regra trabalhista for violada, só avisa — não bloqueia.
+          </Dica>
+        </div>
+      )}
+
+      {erroCelula && <Aviso nivel="erro" titulo={erroCelula} />}
+
+      {avisoCelula && (
+        <Aviso nivel="aviso" titulo={`Salvo, mas: ${avisoCelula}`} />
       )}
 
       <div className="overflow-x-auto rounded-lg border border-border bg-card">
@@ -316,12 +402,34 @@ export function EscalaGrid({
               {colunas.map((f) => (
                 <th key={f.id} className="px-4 py-3 font-medium">
                   <div>{f.nome}</div>
-                  <div className="text-xs font-normal text-zinc-500 dark:text-zinc-400">
-                    {f.coringa ? "coringa" : turnoLabel(f.turnoPadrao)}
+                  <div
+                    className={
+                      "text-xs " +
+                      (f.externo
+                        ? "font-semibold text-warning"
+                        : "font-normal text-zinc-500 dark:text-zinc-400")
+                    }
+                  >
+                    {f.externo
+                      ? `de ${f.postoNome ?? "outro posto"}`
+                      : f.coringa
+                        ? "coringa"
+                        : turnoLabel(f.turnoPadrao)}
                   </div>
                   <div className="text-xs font-semibold text-primary">
                     {formatarHoras(f.horasNoPeriodo)} no período
                   </div>
+                  {f.externo &&
+                    extrasIds.includes(f.id) &&
+                    f.alocacaoPorDia.size === 0 && (
+                      <button
+                        type="button"
+                        onClick={() => removerExterno(f.id)}
+                        className="mt-1 text-xs font-normal text-text-secondary hover:text-danger"
+                      >
+                        × remover
+                      </button>
+                    )}
                 </th>
               ))}
             </tr>
@@ -445,7 +553,8 @@ export function EscalaGrid({
                     );
                   }
 
-                  const ehPadrao = !f.coringa && atual.turnoId === f.turnoPadrao?.id;
+                  const ehPadrao =
+                    !f.coringa && !f.externo && atual.turnoId === f.turnoPadrao?.id;
                   if (ehPadrao) {
                     return (
                       <td
@@ -464,9 +573,11 @@ export function EscalaGrid({
                     <td
                       key={f.id}
                       title={
-                        (f.coringa
-                          ? "Cobrindo turno de outro funcionário"
-                          : "Turno alterado nesse dia (substituição/troca)") +
+                        (f.externo
+                          ? "Cobrindo furo (funcionário de outro posto)"
+                          : f.coringa
+                            ? "Cobrindo turno de outro funcionário"
+                            : "Turno alterado nesse dia (substituição/troca)") +
                         " — clique pra editar"
                       }
                       onClick={() => abrirEdicao(f.id, dia)}

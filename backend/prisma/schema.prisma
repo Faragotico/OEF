@@ -63,7 +63,7 @@ model Funcionario {
   // telefone: apontamento da banca (2º bim). Não consta no DDL do
   // documento — o Dicionário de Dados ainda precisa ganhar esta linha.
   telefone String? @db.VarChar(20)
-  cargo    String  @db.VarChar(80)
+  cargo    String? @db.VarChar(80) // opcional: é só uma informação, não entra na escala
 
   // O limite real vem da tabela regra (RN04), não daqui. O CHECK do
   // documento (> 0 e <= 168) é só o limite físico de horas na semana.

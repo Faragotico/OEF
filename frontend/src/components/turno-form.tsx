@@ -4,13 +4,21 @@ import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { apiPatch, apiPost } from "@/lib/api";
 import { Rotulo } from "@/components/rotulo";
+import { Dica } from "@/components/dica";
+import { Aviso } from "@/components/aviso";
+import { rotuloPosto } from "@/lib/posto-rotulo";
 
 const inputClass =
   "rounded-md border border-border bg-card px-3 py-2 text-sm text-text";
 
 const DIAS = ["dom", "seg", "ter", "qua", "qui", "sex", "sáb"];
 
-type Posto = { id: number; nome: string; localizacao: string };
+type Posto = {
+  id: number;
+  nome: string;
+  localizacao: string;
+  empresa?: { nome: string } | null;
+};
 
 export type ValoresTurno = {
   descricao: string;
@@ -107,7 +115,7 @@ export function TurnoForm({
         </label>
 
         <label className="flex flex-col gap-1 text-sm text-text">
-          <Rotulo obrigatorio>Fim</Rotulo>
+          <Rotulo obrigatorio dica="Precisa ser depois do início.">Fim</Rotulo>
           <input
             type="time"
             required
@@ -117,19 +125,20 @@ export function TurnoForm({
           />
         </label>
       </div>
-      <p className="-mt-2 text-xs text-zinc-500 dark:text-zinc-400">O fim deve ser depois do início.</p>
 
       <label className="flex flex-col gap-1 text-sm text-text">
-        <Rotulo opcional>Posto de trabalho</Rotulo>
+        <Rotulo opcional dica="Turno sem posto é avulso: não faz parte da grade de nenhum posto.">
+          Posto de trabalho
+        </Rotulo>
         <select
           value={form.postoId}
           onChange={(e) => setForm({ ...form, postoId: e.target.value })}
           className={inputClass}
         >
-          <option value="">Avulso (não faz parte da grade de nenhum posto)</option>
+          <option value="">Avulso (sem posto)</option>
           {postos.map((p) => (
             <option key={p.id} value={p.id}>
-              {p.nome} — {p.localizacao}
+              {rotuloPosto(p)} — {p.localizacao}
             </option>
           ))}
         </select>
@@ -139,6 +148,7 @@ export function TurnoForm({
         <fieldset className="flex flex-col gap-2 rounded-lg border border-border p-3">
           <legend className="px-1 text-xs font-bold uppercase tracking-wide">
             Em que dias da semana este turno existe
+            <Dica>Clique no dia pra abrir ou fechar o turno. Dia fechado não gera vaga.</Dica>
           </legend>
           <div className="grid grid-cols-7 gap-1.5">
             {DIAS.map((nome, dia) => {
@@ -169,9 +179,7 @@ export function TurnoForm({
       )}
 
       {error && (
-        <p className="rounded-lg bg-danger px-3 py-2 text-sm font-medium text-white">
-          {error}
-        </p>
+        <Aviso nivel="erro" titulo={error} />
       )}
 
       <button

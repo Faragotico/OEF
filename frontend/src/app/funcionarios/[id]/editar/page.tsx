@@ -14,7 +14,7 @@ type Funcionario = {
   nome: string;
   cpf: string;
   telefone: string | null;
-  cargo: string;
+  cargo: string | null;
   cargaHorariaSemanal: number;
   status: boolean;
   turnoPadraoId: number | null;
@@ -52,7 +52,7 @@ export default async function EditarFuncionarioPage({
               nome: funcionario.nome,
               cpf: funcionario.cpf,
               telefone: funcionario.telefone ?? "",
-              cargo: funcionario.cargo,
+              cargo: funcionario.cargo ?? "",
               cargaHorariaSemanal: funcionario.cargaHorariaSemanal,
               status: funcionario.status,
               postoId: funcionario.postoId ? String(funcionario.postoId) : "",

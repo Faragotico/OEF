@@ -6,6 +6,7 @@ import {
   Param,
   ParseIntPipe,
   Post,
+  Query,
   Res,
 } from '@nestjs/common';
 import type { Response } from 'express';
@@ -15,6 +16,7 @@ import { RegrasTrabalhistasService } from '../../../domain/services/regras-traba
 import { EscalaPdfService } from '../../../domain/services/escala-pdf.service';
 import { CreateEscalaDto } from '../dtos/escala/create-escala.dto';
 import { GerarEscalaAutomaticaDto } from '../dtos/escala/gerar-escala-automatica.dto';
+import { FindEscalasQueryDto } from '../dtos/escala/find-escalas-query.dto';
 import { EscalaPresenter } from '../presenters/escala.presenter';
 
 // @Controller('escalas') = todas as rotas começam com /escalas.
@@ -58,8 +60,21 @@ export class EscalaController {
     return { ...resultado, escala: null };
   }
 
+  // Lista paginada + filtros:
+  // GET /escalas?postoId=3&dataInicio=2026-11-01&dataFim=2026-11-30&page=2
   @Get()
-  async findAll() {
+  async findAll(@Query() query: FindEscalasQueryDto) {
+    const { data, ...paginacao } = await this.service.findAllPaginado(query);
+    return {
+      ...paginacao,
+      data: data.map((e) => EscalaPresenter.toHTTP(e)),
+    };
+  }
+
+  // Lista COMPLETA (sem paginar), só pra preencher dropdowns. Precisa
+  // vir ANTES de @Get(':id'), senão o Nest trataria "opcoes" como um id.
+  @Get('opcoes')
+  async opcoes() {
     const escalas = await this.service.findAll();
     return escalas.map((e) => EscalaPresenter.toHTTP(e));
   }

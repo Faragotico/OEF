@@ -7,6 +7,7 @@ import { Prisma } from '@prisma/client';
 import { RegraRepository } from '../repositories/regra.repository';
 import { CreateRegraDto } from 'src/infra/http/dtos/regra/create-regra.dto';
 import { UpdateRegraDto } from 'src/infra/http/dtos/regra/update-regra.dto';
+import { FindRegrasQueryDto } from 'src/infra/http/dtos/regra/find-regras-query.dto';
 
 // O service é o CÉREBRO: aplica as regras de negócio e decide o que
 // fazer. Não sabe o que é requisição HTTP (controller) nem como o
@@ -47,8 +48,42 @@ export class RegraService {
     }
   }
 
+  // Lista completa (sem paginar): a tela de regras usa pras
+  // configurações gerais (no máximo uma por tipo) e a geração de
+  // escala, pra preencher o select de padrão de rodízio.
   findAll() {
     return this.repository.findAll();
+  }
+
+  // Monta o filtro (where do Prisma) a partir da query string e busca
+  // só a página pedida — ver RegraRepository.findAllPaginado.
+  async findAllPaginado(query: FindRegrasQueryDto) {
+    const page = query.page ?? 1;
+    // trim() tira espaços das pontas; "" (busca vazia) vira "sem filtro".
+    const busca = query.busca?.trim();
+
+    const where: Prisma.RegraWhereInput = {};
+
+    if (query.tipo) {
+      where.tipo = query.tipo;
+    }
+    if (busca) {
+      // Uma caixa de busca, duas colunas: basta UMA bater (OR).
+      where.OR = [
+        { descricao: { contains: busca, mode: 'insensitive' } },
+        { valor: { contains: busca, mode: 'insensitive' } },
+      ];
+    }
+
+    const { data, total } = await this.repository.findAllPaginado(where, page);
+
+    return {
+      data,
+      total,
+      page,
+      // Math.max(1, ...) pra lista vazia mostrar "página 1 de 1".
+      totalPaginas: Math.max(1, Math.ceil(total / RegraRepository.POR_PAGINA)),
+    };
   }
 
   /**

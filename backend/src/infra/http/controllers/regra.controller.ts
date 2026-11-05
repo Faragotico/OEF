@@ -7,10 +7,12 @@ import {
   ParseIntPipe,
   Patch,
   Post,
+  Query,
 } from '@nestjs/common';
 import { RegraService } from 'src/domain/services/regra.service';
 import { CreateRegraDto } from '../dtos/regra/create-regra.dto';
 import { UpdateRegraDto } from '../dtos/regra/update-regra.dto';
+import { FindRegrasQueryDto } from '../dtos/regra/find-regras-query.dto';
 
 // O controller é a PORTA DE ENTRADA HTTP. Ele só recebe a requisição,
 // extrai os dados e chama o service. Sem nenhuma regra de negócio.
@@ -24,8 +26,17 @@ export class RegraController {
     return this.service.create(dto);
   }
 
-  @Get() // GET /regras
-  findAll() {
+  // Lista paginada + filtros: GET /regras?tipo=escala&busca=5x1&page=2
+  @Get()
+  findAll(@Query() query: FindRegrasQueryDto) {
+    return this.service.findAllPaginado(query);
+  }
+
+  // Lista COMPLETA (sem paginar): configurações gerais e selects de
+  // padrão de rodízio. Precisa vir ANTES de @Get(':id'), senão o Nest
+  // trataria "opcoes" como um id.
+  @Get('opcoes')
+  opcoes() {
     return this.service.findAll();
   }
 

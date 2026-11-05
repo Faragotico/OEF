@@ -116,7 +116,7 @@ export class EscalaPdfService {
       doc.moveDown(0.2);
       doc.fontSize(8).fillColor(TINTA);
       doc.text(
-        `${rotuloEscala(escala)} — ${escala.posto.localizacao} — Empresa: ${escala.posto.empresa.nome}`,
+        `${rotuloEscala(escala)} — ${escala.posto.localizacao}`,
       );
       doc.text(
         `Período: ${formatDate(escala.dataInic)} a ${formatDate(escala.dataFim)}   |   Regra de escala: ${escala.regra.descricao} (${escala.regra.valor})`,

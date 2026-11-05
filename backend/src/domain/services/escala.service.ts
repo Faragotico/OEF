@@ -3,10 +3,12 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { EscalaRepository } from '../repositories/escala.repository';
 import { PostoTrabalhoRepository } from '../repositories/posto-trabalho.repository';
 import { RegraRepository } from '../repositories/regra.repository';
 import { CreateEscalaDto } from 'src/infra/http/dtos/escala/create-escala.dto';
+import { FindEscalasQueryDto } from 'src/infra/http/dtos/escala/find-escalas-query.dto';
 import { normalizeDate } from 'src/helpers/date.helpers';
 
 // O service é o CÉREBRO: aplica as regras de negócio e decide o que
@@ -50,8 +52,45 @@ export class EscalaService {
     });
   }
 
+  // Lista completa (sem paginar): só pra preencher dropdowns (ex: o
+  // filtro de escala na tela de alocações).
   findAll() {
     return this.repository.findAll();
+  }
+
+  // Monta o filtro (where do Prisma) a partir da query string e busca
+  // só a página pedida — ver EscalaRepository.findAllPaginado.
+  async findAllPaginado(query: FindEscalasQueryDto) {
+    const page = query.page ?? 1;
+
+    const where: Prisma.EscalaWhereInput = {};
+
+    if (query.postoId !== undefined) {
+      where.postoId = query.postoId;
+    }
+
+    // Período por SOBREPOSIÇÃO: a escala entra se terminar depois do
+    // início do filtro E começar antes do fim dele. Cada ponta é
+    // opcional — só uma delas também funciona.
+    if (query.dataInicio) {
+      where.dataFim = { gte: normalizeDate(query.dataInicio) };
+    }
+    if (query.dataFim) {
+      where.dataInic = { lte: normalizeDate(query.dataFim) };
+    }
+
+    const { data, total } = await this.repository.findAllPaginado(where, page);
+
+    return {
+      data,
+      total,
+      page,
+      // Math.max(1, ...) pra lista vazia mostrar "página 1 de 1".
+      totalPaginas: Math.max(
+        1,
+        Math.ceil(total / EscalaRepository.POR_PAGINA),
+      ),
+    };
   }
 
   async findOne(id: number) {

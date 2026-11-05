@@ -7,10 +7,12 @@ import {
   ParseIntPipe,
   Patch,
   Post,
+  Query,
 } from '@nestjs/common';
 import { FuncionarioService } from '../../../domain/services/funcionario.service';
 import { CreateFuncionarioDto } from '../dtos/funcionario/create-funcionario.dto';
 import { UpdateFuncionarioDto } from '../dtos/funcionario/update-funcionario.dto';
+import { FindFuncionariosQueryDto } from '../dtos/funcionario/find-funcionarios-query.dto';
 import { FuncionarioPresenter } from '../presenters/funcionario.presenter';
 
 // O controller é a PORTA DE ENTRADA HTTP. O trabalho dele é só:
@@ -28,8 +30,22 @@ export class FuncionarioController {
     return FuncionarioPresenter.toHTTP(funcionario);
   }
 
-  @Get() // GET /funcionarios
-  async findAll() {
+  // Lista paginada + filtros:
+  // GET /funcionarios?busca=maria&postoId=3&status=todos&page=2
+  @Get()
+  async findAll(@Query() query: FindFuncionariosQueryDto) {
+    const { data, ...paginacao } = await this.service.findAllPaginado(query);
+    return {
+      ...paginacao,
+      data: data.map((f) => FuncionarioPresenter.toHTTP(f)),
+    };
+  }
+
+  // Lista COMPLETA (sem paginar), pras telas que precisam de todos os
+  // funcionários (ausências, alocações, geração de escala). Precisa vir
+  // ANTES de @Get(':id'), senão o Nest trataria "opcoes" como um id.
+  @Get('opcoes')
+  async opcoes() {
     const funcionarios = await this.service.findAll();
     return funcionarios.map((f) => FuncionarioPresenter.toHTTP(f));
   }

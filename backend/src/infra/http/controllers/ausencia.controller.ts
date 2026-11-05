@@ -7,10 +7,12 @@ import {
   ParseIntPipe,
   Patch,
   Post,
+  Query,
 } from '@nestjs/common';
 import { AusenciaService } from '../../../domain/services/ausencia.service';
 import { CreateAusenciaDto } from '../dtos/ausencia/create-ausencia.dto';
 import { UpdateAusenciaDto } from '../dtos/ausencia/update-ausencia.dto';
+import { FindAusenciasQueryDto } from '../dtos/ausencia/find-ausencias-query.dto';
 import { AusenciaPresenter } from '../presenters/ausencia.presenter';
 
 // O controller é a PORTA DE ENTRADA HTTP. O trabalho dele é só:
@@ -29,10 +31,15 @@ export class AusenciaController {
     return AusenciaPresenter.toHTTP(ausencia);
   }
 
-  @Get() // GET /ausencias
-  async findAll() {
-    const ausencias = await this.service.findAll();
-    return ausencias.map((a) => AusenciaPresenter.toHTTP(a));
+  // Lista paginada + filtros:
+  // GET /ausencias?busca=maria&dataInicio=2026-11-01&dataFim=2026-11-30&page=2
+  @Get()
+  async findAll(@Query() query: FindAusenciasQueryDto) {
+    const { data, ...paginacao } = await this.service.findAllPaginado(query);
+    return {
+      ...paginacao,
+      data: data.map((a) => AusenciaPresenter.toHTTP(a)),
+    };
   }
 
   @Get(':id') // GET /ausencias/3

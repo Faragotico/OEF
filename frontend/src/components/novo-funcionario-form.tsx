@@ -5,10 +5,13 @@ import { useRouter } from "next/navigation";
 import { apiPost } from "@/lib/api";
 import { formatarTelefone } from "@/lib/telefone";
 import { Rotulo } from "@/components/rotulo";
+import { Aviso } from "@/components/aviso";
+import { StatusToggle } from "@/components/status-toggle";
 import {
   type CamposEscala,
   FuncionarioCamposEscala,
 } from "@/components/funcionario-campos-escala";
+import { rotuloPosto } from "@/lib/posto-rotulo";
 
 type Turno = {
   id: number;
@@ -17,7 +20,12 @@ type Turno = {
   horaFim: string;
   postoId: number | null;
 };
-type Posto = { id: number; nome: string; localizacao: string };
+type Posto = {
+  id: number;
+  nome: string;
+  localizacao: string;
+  empresa?: { nome: string } | null;
+};
 
 const inputClass =
   "rounded-md border border-border bg-card px-3 py-2 text-sm text-text";
@@ -60,7 +68,7 @@ export function NovoFuncionarioForm({
         nome: form.nome,
         cpf: form.cpf,
         telefone: form.telefone || undefined,
-        cargo: form.cargo,
+        cargo: form.cargo.trim() || undefined,
         cargaHorariaSemanal: Number(form.cargaHorariaSemanal),
         status: form.status,
         postoId: form.postoId ? Number(form.postoId) : undefined,
@@ -97,7 +105,7 @@ export function NovoFuncionarioForm({
       </label>
 
       <label className="flex flex-col gap-1 text-sm text-text">
-        <Rotulo obrigatorio>CPF (somente números, 11 dígitos)</Rotulo>
+        <Rotulo obrigatorio dica="Somente números, 11 dígitos.">CPF</Rotulo>
         <input
           required
           inputMode="numeric"
@@ -129,9 +137,10 @@ export function NovoFuncionarioForm({
       </label>
 
       <label className="flex flex-col gap-1 text-sm text-text">
-        <Rotulo obrigatorio>Cargo</Rotulo>
+        <Rotulo opcional dica="Só uma etiqueta do que a pessoa faz. Não altera a escala.">
+          Cargo
+        </Rotulo>
         <input
-          required
           minLength={2}
           maxLength={80}
           placeholder="Ex.: Operadora de Caixa"
@@ -184,7 +193,7 @@ export function NovoFuncionarioForm({
           <option value="">Sem posto definido</option>
           {postos.map((p) => (
             <option key={p.id} value={p.id}>
-              {p.nome} — {p.localizacao}
+              {rotuloPosto(p)} — {p.localizacao}
             </option>
           ))}
         </select>
@@ -197,19 +206,13 @@ export function NovoFuncionarioForm({
         onChange={setEscala}
       />
 
-      <label className="flex items-center gap-2 text-sm text-text">
-        <input
-          type="checkbox"
-          checked={form.status}
-          onChange={(e) => setForm({ ...form, status: e.target.checked })}
-        />
-        Ativo
-      </label>
+      <StatusToggle
+        value={form.status}
+        onChange={(status) => setForm({ ...form, status })}
+      />
 
       {error && (
-        <p className="rounded-lg bg-danger px-3 py-2 text-sm font-medium text-white">
-          {error}
-        </p>
+        <Aviso nivel="erro" titulo={error} />
       )}
 
       <button

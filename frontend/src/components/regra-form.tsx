@@ -4,6 +4,7 @@ import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { apiPatch, apiPost } from "@/lib/api";
 import { Rotulo } from "@/components/rotulo";
+import { Aviso } from "@/components/aviso";
 
 const inputClass =
   "rounded-md border border-border bg-card px-3 py-2 text-sm text-text";
@@ -19,28 +20,28 @@ const TIPOS = [
     chave: "escala",
     label: "Padrão de rodízio da escala",
     ajuda:
-      "Quantos dias o funcionário trabalha antes de folgar (ex: 5 dias trabalhados x 1 de folga). É a regra que você escolhe ao gerar uma escala automática — pode cadastrar mais de uma (5x1, 6x1...) e escolher qual usar em cada geração. Os dois números são em DIAS, e o máximo de dias trabalhados é 6: o descanso semanal (RN07) não permite mais que isso sem folga. Plantão em horas (12x36) não é suportado.",
+      "Quantos dias a pessoa trabalha antes de folgar (ex.: 5x1). Os dois números são em dias e o máximo trabalhado é 6. Você escolhe qual padrão usar em cada geração. Plantão em horas (12x36) não é suportado.",
     valorPadrao: "5x1",
   },
   {
     chave: "carga_horaria_semanal",
     label: "Carga horária semanal máxima",
     ajuda:
-      'Limite de horas que um funcionário pode trabalhar de segunda a domingo (CLT: 44h). Vale pro sistema inteiro, sem precisar escolher em lugar nenhum. Só cadastre esta regra se quiser um valor diferente de 44 — sem ela, o sistema já usa 44h.',
+      "Máximo de horas de segunda a domingo (CLT: 44h). Só cadastre se quiser outro valor; sem ela o sistema já usa 44h.",
     valorPadrao: "44",
   },
   {
     chave: "intervalo_interjornada",
     label: "Intervalo mínimo entre jornadas",
     ajuda:
-      "Descanso mínimo, em horas, entre o fim de um turno e o início do próximo (CLT: 11h). Vale pro sistema inteiro, sem precisar escolher em lugar nenhum. Só cadastre esta regra se quiser um valor diferente de 11 — sem ela, o sistema já usa 11h.",
+      "Descanso mínimo, em horas, entre um turno e o próximo (CLT: 11h). Só cadastre se quiser outro valor; sem ela o sistema já usa 11h.",
     valorPadrao: "11",
   },
   {
     chave: "intervalo_intrajornada",
     label: "Intervalo intrajornada (pausa dentro do turno)",
     ajuda:
-      "Pausa dentro do turno (ex: 1h de almoço num turno de 8h) que não conta como hora trabalhada — é descontada do total de horas antes de checar o limite semanal e em qualquer total de horas exibido. Vale pro sistema inteiro, sem precisar escolher em lugar nenhum. Só cadastre esta regra se quiser um valor diferente de 1h — sem ela, o sistema já desconta 1h por turno.",
+      "Pausa dentro do turno (ex.: 1h de almoço), descontada das horas trabalhadas. Só cadastre se quiser outro valor; sem ela o sistema já desconta 1h.",
     valorPadrao: "1",
   },
 ] as const;
@@ -129,7 +130,9 @@ export function RegraForm({
       </label>
 
       <label className="flex flex-col gap-1 text-sm text-text">
-        <Rotulo obrigatorio>Tipo de regra</Rotulo>
+        <Rotulo obrigatorio dica={tipoAtual.ajuda}>
+          Tipo de regra
+        </Rotulo>
         <select
           required
           value={form.tipo}
@@ -143,9 +146,6 @@ export function RegraForm({
           ))}
         </select>
       </label>
-      <p className="-mt-2 rounded-lg border border-border bg-text/5 px-3 py-2 text-xs text-text-secondary">
-        {tipoAtual.ajuda}
-      </p>
 
       {form.tipo === "escala" ? (
         <div className="grid grid-cols-2 gap-4">
@@ -156,6 +156,7 @@ export function RegraForm({
               required
               min={1}
               max={6}
+              placeholder="Ex: 5"
               value={diasTrabalho}
               onChange={(e) => handleCicloChange(e.target.value, diasDescanso)}
               className={inputClass}
@@ -168,6 +169,7 @@ export function RegraForm({
               required
               min={1}
               max={7}
+              placeholder="Ex: 1"
               value={diasDescanso}
               onChange={(e) => handleCicloChange(diasTrabalho, e.target.value)}
               className={inputClass}
@@ -182,6 +184,7 @@ export function RegraForm({
             required
             min={1}
             max={168}
+            placeholder="Ex: 44"
             value={form.valor}
             onChange={(e) => setForm({ ...form, valor: e.target.value })}
             className={inputClass}
@@ -190,9 +193,7 @@ export function RegraForm({
       )}
 
       {error && (
-        <p className="rounded-lg bg-danger px-3 py-2 text-sm font-medium text-white">
-          {error}
-        </p>
+        <Aviso nivel="erro" titulo={error} />
       )}
 
       <button
