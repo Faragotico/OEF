@@ -58,6 +58,17 @@ const listaDeTurnos = (valor: unknown): string => {
 const num = (valor: unknown, padrao = 0): number =>
   typeof valor === "number" ? valor : padrao;
 
+type PessoaAcimaDaCarga = {
+  nome: string;
+  carga: number;
+  semanas: { inicio: string; horas: number }[];
+};
+type PessoaEmOutraEscala = {
+  nome: string;
+  escalas: { posto: string; dias: number; mesmoDia: string[] }[];
+};
+const lista = <T,>(valor: unknown): T[] => (Array.isArray(valor) ? (valor as T[]) : []);
+
 const TRADUTORES: Record<string, (d: Record<string, unknown>) => DiagnosticoLegivel> = {
   "turno-sem-ninguem-habilitado": (d) => ({
     nivel: "erro",
@@ -117,6 +128,54 @@ const TRADUTORES: Record<string, (d: Record<string, unknown>) => DiagnosticoLegi
     titulo: `${num(d.total)} alocação(ões) além da demanda do turno`,
     detalhe: listaDeTurnos(d.turnos),
   }),
+
+  // A carga cadastrada no funcionário (ex.: 30h). Só aviso: pode ser hora
+  // extra combinada. Não confundir com a RN04, o teto legal do sistema.
+  "acima-da-carga-contratual": (d) => {
+    const pessoas = lista<PessoaAcimaDaCarga>(d.pessoas);
+    return {
+      nivel: "aviso",
+      titulo: `Acima da carga horária do contrato: ${listaDeNomes(pessoas)}`,
+      detalhe: pessoas
+        .map(
+          (p) =>
+            `${p.nome} (contrato de ${p.carga}h): ` +
+            p.semanas
+              .map((s) => `${horasEMinutos(s.horas)} na semana de ${diaMes(s.inicio)}`)
+              .join(", "),
+        )
+        .join(" · "),
+      acao:
+        "Se não for hora extra combinada, troque alguns dias na grade ou confira a carga horária no cadastro do funcionário.",
+    };
+  },
+
+  // Coringa ou emprestado que também está na escala de outro posto. A
+  // geração e a validação olham uma escala por vez e não somam as duas.
+  "em-outra-escala": (d) => {
+    const pessoas = lista<PessoaEmOutraEscala>(d.pessoas);
+    return {
+      nivel: "aviso",
+      titulo: `Também escalados em outro posto no período: ${listaDeNomes(pessoas)}`,
+      detalhe: pessoas
+        .map(
+          (p) =>
+            `${p.nome}: ` +
+            p.escalas
+              .map(
+                (e) =>
+                  `${e.dias} dia(s) em ${e.posto}` +
+                  (e.mesmoDia.length > 0
+                    ? ` — no MESMO dia que aqui: ${e.mesmoDia.map(diaMes).join(", ")}`
+                    : ""),
+              )
+              .join("; "),
+        )
+        .join(" · "),
+      acao:
+        "As regras (dias seguidos, horas na semana, descanso) são conferidas em cada escala separadamente. Confira essas pessoas e, se houver dia repetido, tire-as de uma das escalas.",
+    };
+  },
 
   "carga-semanal-estoura": (d) => ({
     nivel: "aviso",

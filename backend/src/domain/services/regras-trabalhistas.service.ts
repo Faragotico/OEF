@@ -18,7 +18,12 @@ import {
 } from '../escala/modelo';
 import { criarEstado, verificar } from '../escala/restricoes';
 import { auditar } from '../escala/auditoria';
-import { conferirCobertura, semDomingoDeFolga } from '../escala/conferencia';
+import {
+  acimaDaCargaContratual,
+  conferirCobertura,
+  emOutraEscala,
+  semDomingoDeFolga,
+} from '../escala/conferencia';
 import { montarDias } from '../escala/periodo';
 import { DIAS_DE_HISTORICO } from '../escala/periodo';
 import {
@@ -255,7 +260,7 @@ export class RegrasTrabalhistasService {
    * Versão que lança a exceção HTTP certa — usada pela criação e edição
    * manual de alocação.
    *
-   * SÓ bloqueia violação estrutural (FK, RN03, conflito de horário).
+   * SÓ bloqueia violação estrutural (FK, RN01, RN03, conflito de horário).
    * RN04 a RN07 são regras trabalhistas: a geração automática respeita
    * todas à risca, mas bloqueá-las de novo numa edição manual impede
    * uma correção legítima — cobrir à mão uma vaga que ficou vazia
@@ -272,6 +277,10 @@ export class RegrasTrabalhistasService {
     if (resultado.regra === 'FK') throw new NotFoundException(resultado.motivo);
     if (resultado.regra === 'conflito') throw new ConflictException(resultado.motivo);
     if (resultado.regra === 'RN03') throw new BadRequestException(resultado.motivo);
+    // RN01 — funcionário inativo. Antes caía no "aviso" abaixo e a
+    // alocação era gravada mesmo com a mensagem dizendo que não podia.
+    // Inativo é cadastro, não decisão do dia: não há caso legítimo.
+    if (resultado.regra === 'RN01') throw new BadRequestException(resultado.motivo);
     return resultado.motivo;
   }
 
@@ -335,13 +344,22 @@ export class RegrasTrabalhistasService {
           include: { demandas: true },
         }),
         // Dias trabalhados em QUALQUER escala (não só esta): quem cobre um
-        // furo aqui pode ter folgado o domingo no posto de origem.
+        // furo aqui pode ter folgado o domingo no posto de origem. Também
+        // alimenta os avisos de carga do contrato e de "em outra escala".
         this.prisma.alocacao.findMany({
           where: {
             funcionarioId: { in: funcionarioIds },
             data: { gte: escala.dataInic, lte: escala.dataFim },
           },
-          select: { funcionarioId: true, data: true },
+          select: {
+            funcionarioId: true,
+            data: true,
+            escalaId: true,
+            turno: true,
+            escala: {
+              select: { posto: { select: { nome: true, empresa: { select: { nome: true } } } } },
+            },
+          },
         }),
       ]);
 
@@ -454,6 +472,63 @@ export class RegrasTrabalhistasService {
           domingosNoPeriodo: semDomingo.domingosNoPeriodo,
           pessoasNoPosto: pessoas.length,
         },
+      });
+    }
+
+    // Carga do contrato e "em outra escala": só avisos (ver conferencia.ts).
+    const deOutrasEscalas = trabalhadosNoPeriodo.filter((a) => a.escalaId !== escalaId);
+    const horasEfetivas = (t: { horaInicio: Date; horaFim: Date }) =>
+      Math.max(0, shiftDurationHours(t) - intrajornada);
+
+    const cargaPorId = new Map(
+      escala.alocacoes.map((a) => [a.funcionarioId, a.funcionario.cargaHorariaSemanal]),
+    );
+    const acimaDaCarga = acimaDaCargaContratual(
+      diasDoPeriodo,
+      pessoas.map((p) => ({ id: p.id, nome: p.nome, cargaSemanal: cargaPorId.get(p.id) ?? 0 })),
+      [
+        ...escala.alocacoes.map((a) => ({
+          pessoaId: a.funcionarioId,
+          diaIso: formatDate(a.data),
+          horas: horasEfetivas(a.turno),
+        })),
+        ...historico.map((a) => ({
+          pessoaId: a.funcionarioId,
+          diaIso: formatDate(a.data),
+          horas: horasEfetivas(a.turno),
+        })),
+        ...deOutrasEscalas.map((a) => ({
+          pessoaId: a.funcionarioId,
+          diaIso: formatDate(a.data),
+          horas: horasEfetivas(a.turno),
+        })),
+      ],
+    );
+    if (acimaDaCarga.length > 0) {
+      diagnosticos.push({
+        codigo: 'acima-da-carga-contratual',
+        nivel: 'aviso',
+        dados: { pessoas: acimaDaCarga },
+      });
+    }
+
+    const emOutra = emOutraEscala(
+      pessoas,
+      new Set(escala.alocacoes.map((a) => `${a.funcionarioId}|${formatDate(a.data)}`)),
+      deOutrasEscalas.map((a) => ({
+        pessoaId: a.funcionarioId,
+        diaIso: formatDate(a.data),
+        escalaId: a.escalaId,
+        posto: a.escala.posto.empresa
+          ? `${a.escala.posto.nome} (${a.escala.posto.empresa.nome})`
+          : a.escala.posto.nome,
+      })),
+    );
+    if (emOutra.length > 0) {
+      diagnosticos.push({
+        codigo: 'em-outra-escala',
+        nivel: 'aviso',
+        dados: { pessoas: emOutra },
       });
     }
 

@@ -11,10 +11,12 @@ import { RegraRepository } from '../repositories/regra.repository';
 import { RegrasTrabalhistasService } from './regras-trabalhistas.service';
 import { GerarEscalaAutomaticaDto } from 'src/infra/http/dtos/escala/gerar-escala-automatica.dto';
 import {
+  type Diagnostico,
   type Pessoa,
   type ProblemaEscala,
   type Turno as TurnoDominio,
 } from '../escala/modelo';
+import { acimaDaCargaContratual, emOutraEscala } from '../escala/conferencia';
 import { type DemandaTurno, inicioDoHistorico, montarDias, montarVagas } from '../escala/periodo';
 import { planejar } from '../escala/planejador';
 import {
@@ -155,6 +157,17 @@ export class GeracaoEscalaService {
       }
     }
 
+    // Inativo não entra na escala (RN01). A tela já esconde os inativos,
+    // mas uma tela aberta há tempo (alguém inativado nesse meio tempo) ou
+    // uma chamada direta à API ainda mandaria o id.
+    const inativos = candidatos.filter((f) => !f.status);
+    if (inativos.length > 0) {
+      throw new BadRequestException(
+        `Estes funcionários estão inativos e não podem entrar na escala: ` +
+          `${inativos.map((f) => f.nome).join(", ")}. Atualize a página e gere de novo.`,
+      );
+    }
+
     if (candidatos.length === 0) {
       throw new BadRequestException(
         dto.funcionarioIds?.length
@@ -195,7 +208,7 @@ export class GeracaoEscalaService {
     }
 
     const idsEscalaveis = escalaveis.map((f) => f.id);
-    const [ausencias, historico] = await Promise.all([
+    const [ausencias, historico, outrasEscalas] = await Promise.all([
       this.prisma.ausencia.findMany({
         where: {
           funcionarioId: { in: idsEscalaveis },
@@ -217,6 +230,25 @@ export class GeracaoEscalaService {
           },
         },
         select: { funcionarioId: true, data: true, turnoId: true },
+      }),
+      // Dias em que essas pessoas já trabalham em escalas de OUTROS postos
+      // no período (coringa sem posto, ou emprestado pela grade). O plano
+      // não leva isso em conta; serve só para os avisos depois de planejar.
+      this.prisma.alocacao.findMany({
+        where: {
+          funcionarioId: { in: idsEscalaveis },
+          data: { gte: dataInicio, lte: dataFim },
+          escala: { postoId: { not: dto.postoId } },
+        },
+        select: {
+          funcionarioId: true,
+          data: true,
+          escalaId: true,
+          turno: true,
+          escala: {
+            select: { posto: { select: { nome: true, empresa: { select: { nome: true } } } } },
+          },
+        },
       }),
     ]);
 
@@ -314,6 +346,62 @@ export class GeracaoEscalaService {
     };
 
     const plano = planejar(problema);
+
+    // Avisos que não mudam o plano (ver domain/escala/conferencia.ts).
+    const turnosDominio = new Map(problema.turnos.map((t) => [t.id, t]));
+    const horasDoTurno = (turnoId: number) => turnosDominio.get(turnoId)?.duracaoEfetiva ?? 0;
+    const diagnosticosExtras: Diagnostico[] = [];
+
+    // Carga do contrato: conta o plano, a semana anterior (histórico) e o
+    // que a pessoa já faz em outras escalas no período.
+    const acimaDaCarga = acimaDaCargaContratual(
+      dias,
+      escalaveis.map((f) => ({ id: f.id, nome: f.nome, cargaSemanal: f.cargaHorariaSemanal })),
+      [
+        ...plano.atribuicoes.map((a) => ({
+          pessoaId: a.pessoaId,
+          diaIso: a.diaIso,
+          horas: horasDoTurno(a.turnoId),
+        })),
+        ...problema.historico.map((h) => ({
+          pessoaId: h.pessoaId,
+          diaIso: h.diaIso,
+          horas: horasDoTurno(h.turnoId),
+        })),
+        ...outrasEscalas.map((a) => ({
+          pessoaId: a.funcionarioId,
+          diaIso: formatDate(a.data),
+          horas: paraDominio(a.turno).duracaoEfetiva,
+        })),
+      ],
+    );
+    if (acimaDaCarga.length > 0) {
+      diagnosticosExtras.push({
+        codigo: 'acima-da-carga-contratual',
+        nivel: 'aviso',
+        dados: { pessoas: acimaDaCarga },
+      });
+    }
+
+    const emOutra = emOutraEscala(
+      escalaveis,
+      new Set(plano.atribuicoes.map((a) => `${a.pessoaId}|${a.diaIso}`)),
+      outrasEscalas.map((a) => ({
+        pessoaId: a.funcionarioId,
+        diaIso: formatDate(a.data),
+        escalaId: a.escalaId,
+        posto: a.escala.posto.empresa
+          ? `${a.escala.posto.nome} (${a.escala.posto.empresa.nome})`
+          : a.escala.posto.nome,
+      })),
+    );
+    if (emOutra.length > 0) {
+      diagnosticosExtras.push({
+        codigo: 'em-outra-escala',
+        nivel: 'aviso',
+        dados: { pessoas: emOutra },
+      });
+    }
 
     // ------------------------------------------------------------
     // 3. Gravar (ou não, se for simulação)
@@ -413,7 +501,7 @@ export class GeracaoEscalaService {
       // `avisoX: string | null` com o parágrafo já montado, o que
       // espalhava a mesma informação em formatos diferentes e deixava a
       // tela sem saber a gravidade de nada.
-      diagnosticos: plano.diagnosticos,
+      diagnosticos: [...plano.diagnosticos, ...diagnosticosExtras],
       reparosAplicados: plano.reparosAplicados,
     };
   }

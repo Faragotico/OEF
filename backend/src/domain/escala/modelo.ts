@@ -240,7 +240,11 @@ export type CodigoDiagnostico =
   // Só na validação de uma escala já salva (a geração não produz isso:
   // ela nunca aloca além da demanda, e as vagas vazias têm aviso próprio).
   | 'vagas-descobertas'
-  | 'cobertura-acima';
+  | 'cobertura-acima'
+  // Só avisos, na geração e na validação (ver conferencia.ts): passar da
+  // carga do contrato da pessoa, e a pessoa estar em outra escala no período.
+  | 'acima-da-carga-contratual'
+  | 'em-outra-escala';
 
 export interface Diagnostico {
   codigo: CodigoDiagnostico;

@@ -11,7 +11,7 @@
 // São funções puras: recebem o resultado já montado e devolvem os
 // achados. Quem sabe de banco é o serviço que chama.
 // ============================================================
-import { type Dia, type DiaIso } from './modelo';
+import { type Dia, type DiaIso, desloca, diaDaSemanaDe } from './modelo';
 
 /**
  * Quem não ganhou nenhum domingo de folga no período.
@@ -94,4 +94,130 @@ export function conferirCobertura(
   }
 
   return { faltando, sobrando, totalFaltando, totalSobrando };
+}
+
+// ------------------------------------------------------------
+// Carga horária do CONTRATO de cada pessoa.
+//
+// Não é a RN04: a RN04 é o teto legal do sistema (ex.: 44h), e esse a
+// geração respeita à risca. Aqui é a carga cadastrada no funcionário
+// (ex.: 30h de meio período). Passar dela não bloqueia nada — pode ser
+// hora extra combinada —, só AVISA, que foi o pedido do gestor.
+// ------------------------------------------------------------
+
+export interface HorasNoDia {
+  pessoaId: number;
+  diaIso: DiaIso;
+  /** Horas efetivas do turno (já sem o intervalo intrajornada). */
+  horas: number;
+}
+
+export interface PessoaComCarga {
+  id: number;
+  nome: string;
+  cargaSemanal: number;
+}
+
+/** Segunda-feira da semana que contém o dia (a semana vai de seg a dom). */
+export function segundaDaSemana(iso: DiaIso): DiaIso {
+  return desloca(iso, -((diaDaSemanaDe(iso) + 6) % 7));
+}
+
+/**
+ * Semanas do período em que a pessoa passou da carga do contrato.
+ *
+ * `alocacoes` deve trazer TUDO o que a pessoa trabalhou nessas semanas —
+ * desta escala, de outras escalas e dos dias antes do período —, senão
+ * uma semana que começa no mês anterior ou divide a pessoa entre dois
+ * postos parece mais leve do que é.
+ */
+export function acimaDaCargaContratual(
+  dias: Dia[],
+  pessoas: PessoaComCarga[],
+  alocacoes: HorasNoDia[],
+): { id: number; nome: string; carga: number; semanas: { inicio: DiaIso; horas: number }[] }[] {
+  const semanasDoPeriodo = new Set(dias.map((d) => segundaDaSemana(d.iso)));
+  const horasPorChave = new Map<string, number>();
+  for (const a of alocacoes) {
+    const semana = segundaDaSemana(a.diaIso);
+    if (!semanasDoPeriodo.has(semana)) continue;
+    const chave = `${a.pessoaId}|${semana}`;
+    horasPorChave.set(chave, (horasPorChave.get(chave) ?? 0) + a.horas);
+  }
+
+  const resultado: { id: number; nome: string; carga: number; semanas: { inicio: DiaIso; horas: number }[] }[] = [];
+  for (const p of pessoas) {
+    if (!(p.cargaSemanal > 0)) continue;
+    const semanas = [...semanasDoPeriodo]
+      .sort()
+      .map((inicio) => ({
+        inicio,
+        // Arredonda a centésimos: 7.333… + 7.333… + … não pode virar
+        // "30.000000004h" e disparar um aviso falso.
+        horas: Math.round((horasPorChave.get(`${p.id}|${inicio}`) ?? 0) * 100) / 100,
+      }))
+      .filter((s) => s.horas > p.cargaSemanal);
+    if (semanas.length > 0) {
+      resultado.push({ id: p.id, nome: p.nome, carga: p.cargaSemanal, semanas });
+    }
+  }
+  return resultado;
+}
+
+// ------------------------------------------------------------
+// A mesma pessoa em OUTRA escala no período.
+//
+// A geração e a validação olham uma escala de cada vez. Quem é coringa
+// sem posto, ou foi emprestado pela grade a outro posto, pode estar em
+// duas escalas no mesmo mês — e as regras (dias seguidos, horas,
+// descanso) não somam as duas. Por ora isto só AVISA, para o gestor
+// conferir; não muda o que a geração decide.
+// ------------------------------------------------------------
+
+export interface DiaEmOutraEscala {
+  pessoaId: number;
+  diaIso: DiaIso;
+  escalaId: number;
+  /** Nome para a frase, ex.: "Loja Centro (Mercado Popular)". */
+  posto: string;
+}
+
+export interface PessoaEmOutraEscala {
+  id: number;
+  nome: string;
+  escalas: { escalaId: number; posto: string; dias: number; mesmoDia: DiaIso[] }[];
+}
+
+export function emOutraEscala<P extends { id: number; nome: string }>(
+  pessoas: P[],
+  /** Dias em que a pessoa trabalha NESTA escala, como "pessoaId|dia". */
+  diasDestaEscala: Set<string>,
+  outras: DiaEmOutraEscala[],
+): PessoaEmOutraEscala[] {
+  const porPessoa = new Map<number, Map<number, { posto: string; dias: Set<DiaIso> }>>();
+  for (const o of outras) {
+    const escalas =
+      porPessoa.get(o.pessoaId) ?? new Map<number, { posto: string; dias: Set<DiaIso> }>();
+    const atual = escalas.get(o.escalaId) ?? { posto: o.posto, dias: new Set<DiaIso>() };
+    atual.dias.add(o.diaIso);
+    escalas.set(o.escalaId, atual);
+    porPessoa.set(o.pessoaId, escalas);
+  }
+
+  const resultado: PessoaEmOutraEscala[] = [];
+  for (const p of pessoas) {
+    const escalas = porPessoa.get(p.id);
+    if (!escalas) continue;
+    resultado.push({
+      id: p.id,
+      nome: p.nome,
+      escalas: [...escalas].map(([escalaId, { posto, dias }]) => ({
+        escalaId,
+        posto,
+        dias: dias.size,
+        mesmoDia: [...dias].filter((d) => diasDestaEscala.has(`${p.id}|${d}`)).sort(),
+      })),
+    });
+  }
+  return resultado;
 }
