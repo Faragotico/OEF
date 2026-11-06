@@ -8,7 +8,12 @@ type Turno = {
   horaFim: string;
   postoId: number | null;
 };
-type Posto = { id: number; nome: string; localizacao: string };
+type Posto = {
+  id: number;
+  nome: string;
+  localizacao: string;
+  empresa?: { nome: string } | null;
+};
 
 // Server component só pra buscar turnos e postos (o form em si, que
 // precisa de estado e eventos, mora no client component abaixo).

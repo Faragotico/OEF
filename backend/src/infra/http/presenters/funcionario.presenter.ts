@@ -1,4 +1,4 @@
-import { Funcionario, PostoTrabalho, Turno } from '@prisma/client';
+import { Cargo, Funcionario, PostoTrabalho, Turno } from '@prisma/client';
 import { TurnoPresenter } from './turno.presenter';
 
 // O presenter é o espelho do DTO: o DTO valida o que ENTRA, o
@@ -21,6 +21,7 @@ export class FuncionarioPresenter {
     funcionario: Funcionario & {
       turnoPadrao?: Turno | null;
       posto?: PostoTrabalho | null;
+      cargo?: Cargo | null;
       habilitacoes?: { turnoId: number }[];
     },
   ) {
@@ -31,6 +32,7 @@ export class FuncionarioPresenter {
         ? TurnoPresenter.toHTTP(funcionario.turnoPadrao)
         : null,
       posto: funcionario.posto ?? null,
+      cargo: funcionario.cargo ?? null,
       turnosHabilitadosIds: habilitacoes.map((h) => h.turnoId),
       coringa: funcionario.turnoPadraoId === null && habilitacoes.length > 0,
       cadastroIncompleto:

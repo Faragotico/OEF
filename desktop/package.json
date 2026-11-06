@@ -6,7 +6,14 @@
   "main": "main.js",
   "scripts": {
     "front:build": "pnpm --dir ../frontend build && node scripts/preparar-front.js",
+    "back:build": "pnpm --dir ../backend build",
+    "build": "pnpm back:build && pnpm front:build",
     "start": "electron .",
-    "dev": "electron . --dev"
+    "dev": "electron . --dev",
+    "ajuda:fotos": "electron scripts/capturar-ajuda.js"
+  },
+  "devDependencies": {
+    "electron": "^45.2.2",
+    "electron-builder": "^26.18.0"
   }
 }

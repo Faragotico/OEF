@@ -63,7 +63,11 @@ async function bootstrap() {
     credentials: true,
   });
 
-  await app.listen(process.env.PORT ?? 3001);
+  // HOST opcional: o app desktop passa 127.0.0.1 para a API não ficar
+  // exposta na rede local. Sem ele, escuta em todas as interfaces.
+  const porta = process.env.PORT ?? 3001;
+  if (process.env.HOST) await app.listen(porta, process.env.HOST);
+  else await app.listen(porta);
   console.log(
     `🚀 Backend rodando em http://localhost:${process.env.PORT ?? 3001}`,
   );

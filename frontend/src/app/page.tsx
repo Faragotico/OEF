@@ -1,45 +1,52 @@
 import Link from "next/link";
 
+// Mesma ordem do menu lateral: a ordem em que se cadastra (quem depende
+// de quem) e, no fim, o uso do dia a dia.
 const SECOES = [
-  {
-    href: "/funcionarios",
-    titulo: "Funcionários",
-    descricao: "Cadastro, turno padrão e status de cada funcionário.",
-  },
-  {
-    href: "/ausencias",
-    titulo: "Ausências",
-    descricao: "Faltas, atestados e licenças — nunca aloca alguém no período.",
-  },
   {
     href: "/empresas",
     titulo: "Empresas",
-    descricao: "Empresas contratantes atendidas pela Sharon Pontes.",
-  },
-  {
-    href: "/postos",
-    titulo: "Postos de Trabalho",
-    descricao: "Locais onde os funcionários são alocados.",
-  },
-  {
-    href: "/turnos",
-    titulo: "Turnos",
-    descricao: "Períodos de trabalho disponíveis no sistema.",
+    descricao: "Empresas atendidas. Cada posto pertence a uma delas.",
   },
   {
     href: "/regras",
     titulo: "Regras Trabalhistas",
-    descricao: "Regras da CLT aplicadas na geração automática.",
+    descricao: "Padrão de rodízio (5x1, 6x1…) e limites da CLT usados na geração.",
   },
   {
-    href: "/alocacoes",
-    titulo: "Alocações",
-    descricao: "Todas as alocações já geradas, com filtros.",
+    href: "/postos",
+    titulo: "Postos de Trabalho",
+    descricao: "Locais de trabalho. A escala é montada por posto.",
+  },
+  {
+    href: "/turnos",
+    titulo: "Turnos",
+    descricao: "Horários de cada posto e os dias da semana em que existem.",
+  },
+  {
+    href: "/cargos",
+    titulo: "Cargos",
+    descricao: "Lista de cargos (Porteiro, Recepcionista…) para o cadastro.",
+  },
+  {
+    href: "/funcionarios",
+    titulo: "Funcionários",
+    descricao: "Equipe de cada posto, turno de casa, coringas e status.",
+  },
+  {
+    href: "/ausencias",
+    titulo: "Ausências",
+    descricao: "Férias, atestados e faltas — a pessoa não é escalada no período.",
   },
   {
     href: "/escalas",
     titulo: "Escalas",
-    descricao: "Gera escalas automaticamente e revisa cada uma.",
+    descricao: "Gera a escala do mês, ajusta na grade e baixa o PDF.",
+  },
+  {
+    href: "/alocacoes",
+    titulo: "Alocações",
+    descricao: "Consulta de quem trabalhou em cada dia e turno.",
   },
 ];
 

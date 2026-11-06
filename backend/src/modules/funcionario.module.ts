@@ -4,6 +4,7 @@ import { FuncionarioService } from '../domain/services/funcionario.service';
 import { FuncionarioRepository } from '../domain/repositories/funcionario.repository';
 import { TurnoRepository } from '../domain/repositories/turno.repository';
 import { PostoTrabalhoRepository } from '../domain/repositories/posto-trabalho.repository';
+import { CargoRepository } from '../domain/repositories/cargo.repository';
 import { PrismaService } from '../infra/database/prisma.service';
 
 // O Module é a "lista de peças" desta funcionalidade. O NestJS lê isso
@@ -20,6 +21,7 @@ import { PrismaService } from '../infra/database/prisma.service';
     FuncionarioRepository,
     TurnoRepository,
     PostoTrabalhoRepository,
+    CargoRepository,
     PrismaService,
   ],
 })

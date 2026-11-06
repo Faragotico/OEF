@@ -5,7 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { DeleteButton } from "@/components/delete-button";
 import { Paginacao } from "@/components/paginacao";
 import { rotuloEscala } from "@/lib/escala-rotulo";
-import { rotuloPosto } from "@/lib/posto-rotulo";
+import { SelectPesquisavel } from "@/components/select-pesquisavel";
 import { PostoNome } from "@/components/posto-nome";
 
 type Posto = {
@@ -92,25 +92,24 @@ export function EscalasList({
       </div>
 
       <div className="mb-4 flex flex-wrap items-end gap-2">
-        <select
+        <SelectPesquisavel
           value={postoIdAtual}
-          onChange={(e) =>
+          onChange={(valor) =>
             navegar({
-              postoId: e.target.value,
+              postoId: valor,
               dataInicio: dataInicioAtual,
               dataFim: dataFimAtual,
             })
           }
-          className={inputClass}
+          className="min-w-64"
           aria-label="Filtrar por posto"
-        >
-          <option value="">Todos os postos</option>
-          {postos.map((p) => (
-            <option key={p.id} value={p.id}>
-              {rotuloPosto(p)}
-            </option>
-          ))}
-        </select>
+          vazio="Todos os postos"
+          opcoes={postos.map((p) => ({
+            valor: String(p.id),
+            rotulo: p.nome,
+            detalhe: p.empresa?.nome ?? undefined,
+          }))}
+        />
         <label className="flex flex-col gap-1 text-sm text-text">
           De
           <input

@@ -6,6 +6,7 @@ import { DeleteButton } from "@/components/delete-button";
 import { PostoForm } from "@/components/posto-form";
 import { Modal } from "@/components/modal";
 import { Paginacao } from "@/components/paginacao";
+import { SelectPesquisavel } from "@/components/select-pesquisavel";
 
 type Empresa = { id: number; nome: string };
 type Posto = {
@@ -91,21 +92,14 @@ export function PostosList({
           placeholder="Buscar por nome ou localização"
           className={`min-w-64 flex-1 ${inputClass}`}
         />
-        <select
+        <SelectPesquisavel
           value={empresaIdAtual}
-          onChange={(e) =>
-            navegar({ busca: busca.trim(), empresaId: e.target.value })
-          }
-          className={inputClass}
+          onChange={(valor) => navegar({ busca: busca.trim(), empresaId: valor })}
+          className="min-w-64"
           aria-label="Filtrar por empresa"
-        >
-          <option value="">Todas as empresas</option>
-          {empresas.map((e) => (
-            <option key={e.id} value={e.id}>
-              {e.nome}
-            </option>
-          ))}
-        </select>
+          vazio="Todas as empresas"
+          opcoes={empresas.map((e) => ({ valor: String(e.id), rotulo: e.nome }))}
+        />
         <button
           type="submit"
           className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-primary-hover"

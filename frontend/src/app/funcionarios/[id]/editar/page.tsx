@@ -8,13 +8,18 @@ type Turno = {
   horaFim: string;
   postoId: number | null;
 };
-type Posto = { id: number; nome: string; localizacao: string };
+type Posto = {
+  id: number;
+  nome: string;
+  localizacao: string;
+  empresa?: { nome: string } | null;
+};
 type Funcionario = {
   id: number;
   nome: string;
   cpf: string;
   telefone: string | null;
-  cargo: string | null;
+  cargoId: number | null;
   cargaHorariaSemanal: number;
   status: boolean;
   turnoPadraoId: number | null;
@@ -52,7 +57,7 @@ export default async function EditarFuncionarioPage({
               nome: funcionario.nome,
               cpf: funcionario.cpf,
               telefone: funcionario.telefone ?? "",
-              cargo: funcionario.cargo ?? "",
+              cargoId: funcionario.cargoId ? String(funcionario.cargoId) : "",
               cargaHorariaSemanal: funcionario.cargaHorariaSemanal,
               status: funcionario.status,
               postoId: funcionario.postoId ? String(funcionario.postoId) : "",

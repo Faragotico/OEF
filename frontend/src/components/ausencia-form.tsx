@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { apiPatch, apiPost } from "@/lib/api";
 import { Rotulo } from "@/components/rotulo";
 import { Aviso } from "@/components/aviso";
+import { SelectPesquisavel } from "@/components/select-pesquisavel";
 
 const inputClass =
   "rounded-md border border-border bg-card px-3 py-2 text-sm text-text";
@@ -89,22 +90,17 @@ export function AusenciaForm({
         >
           Funcionário
         </Rotulo>
-        <select
+        <SelectPesquisavel
           required
           value={form.funcionarioId}
-          onChange={(e) => setForm({ ...form, funcionarioId: e.target.value })}
-          className={inputClass}
-        >
-          {funcionarios.length === 0 && (
-            <option value="">Nenhum cadastrado</option>
-          )}
-          {funcionarios.map((f) => (
-            <option key={f.id} value={f.id}>
-              {f.nome}
-              {f.coringa ? " (coringa)" : ""}
-            </option>
-          ))}
-        </select>
+          onChange={(valor) => setForm({ ...form, funcionarioId: valor })}
+          placeholder={funcionarios.length === 0 ? "Nenhum cadastrado" : "Selecione…"}
+          opcoes={funcionarios.map((f) => ({
+            valor: String(f.id),
+            rotulo: f.nome,
+            detalhe: f.coringa ? "Coringa" : undefined,
+          }))}
+        />
       </label>
       {funcionarios.length === 0 && (
         <p className="-mt-2 text-xs text-zinc-500 dark:text-zinc-400">

@@ -1,2 +1,5 @@
 allowBuilds:
   electron: true
+  # Só serve ao alvo "squirrel" do electron-builder; o instalador do OEF
+  # usa NSIS, então o script de build dele não é necessário.
+  electron-winstaller: false

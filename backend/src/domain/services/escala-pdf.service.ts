@@ -33,18 +33,25 @@ type AlocacaoComRelacoes = Alocacao & {
 // que a define.
 const ehCoringa = (f: { turnoPadraoId: number | null }) => f.turnoPadraoId === null;
 
-// Escala de cinza: o quadro é impresso e fotocopiado, então quem
-// distingue uma célula da outra é o TOM e o RÓTULO, nunca o matiz.
+// Visual "econômico": a escala é impressa e afixada no posto, e
+// fundo preenchido (faixa de cabeçalho, célula de folga escura) gasta
+// toner sem dar informação nova. Fundo branco em tudo; quem distingue
+// uma célula da outra é o RÓTULO e o PESO da fonte (normal, negrito,
+// itálico), com no máximo uma borda fina. Nenhum matiz: fotocópia
+// em P&B tem que continuar legível.
 
-const TINTA = '#000000';        // texto e todas as bordas
-const PAPEL = '#ffffff';        // fundo normal
-const CABECALHO = '#e5e5e5';    // faixa de cabeçalho e célula de horário alterado
-const DOMINGO = '#f2f2f2';      // realce leve da linha de domingo
-const FOLGA = '#4d4d4d';        // folga comum — rótulo branco por cima
-const FOLGA_ABERTA = '#000000'; // folga que deixou a vaga sem cobertura
-const FERIADO = '#c9c9c9';      // feriado nacional — rótulo preto por cima
-const PONTO = '#9a9a9a';        // o "•" de turno padrão
-const SUBTITULO = '#3f3f3f';    // horário de casa, sob o nome da coluna
+const TINTA = '#000000';        // texto principal
+const TEXTO_SUAVE = '#555555';  // texto secundário (folga comum, subtítulo) — legível, mas "recua"
+const GRADE = '#808080';        // linhas de grade: cinza médio, finas
+const PONTO = '#808080';        // o "•" de turno padrão
+const DOMINGO = '#f2f2f2';      // único fundo: só a célula pequena do dia, no domingo
+
+const LINHA_GRADE = 0.5;        // grade fina: separa sem "pintar" a página
+const LINHA_DESTAQUE = 0.75;    // moldura interna da FOLGA* e linha sob o cabeçalho
+
+const FONTE = 'Helvetica';
+const FONTE_NEGRITO = 'Helvetica-Bold';
+const FONTE_ITALICO = 'Helvetica-Oblique';
 
 @Injectable()
 export class EscalaPdfService {
@@ -109,12 +116,14 @@ export class EscalaPdfService {
       // e um mês de 30/31 dias vazava pra segunda página só por causa
       // disso. Juntando os metadados em 2 linhas (com "—" e "|" como
       // separador) cabe tudo numa página A4 só, que era o pedido.
+      // Título só em negrito, sem faixa/caixa atrás: identifica igual e não gasta tinta.
       doc
+        .font(FONTE_NEGRITO)
         .fontSize(13)
         .fillColor(TINTA)
         .text('OEF — Escala de Trabalho', { align: 'left' });
       doc.moveDown(0.2);
-      doc.fontSize(8).fillColor(TINTA);
+      doc.font(FONTE).fontSize(8).fillColor(TINTA);
       doc.text(
         `${rotuloEscala(escala)} — ${escala.posto.localizacao}`,
       );
@@ -231,19 +240,26 @@ export class EscalaPdfService {
 
       let y = doc.y;
 
+      // Contorno de célula: fino e cinza, sem preenchimento.
+      const celula = (x: number, yy: number, w: number, h: number) => {
+        doc.lineWidth(LINHA_GRADE).strokeColor(GRADE).rect(x, yy, w, h).stroke();
+      };
+
       function desenharCabecalhoColunas() {
+        // Cabeçalho sem faixa cinza: o nome em negrito + uma linha um
+        // pouco mais forte embaixo já separam o cabeçalho do corpo.
+        celula(margin, y, diaColWidth, headerRowHeight);
         doc
-          .rect(margin, y, diaColWidth, headerRowHeight)
-          .fillAndStroke(CABECALHO, TINTA);
-        doc
+          .font(FONTE_NEGRITO)
           .fillColor(TINTA)
           .fontSize(7)
           .text('Dia', margin + 3, y + 6, { width: diaColWidth - 6 });
 
         funcionarios.forEach((f, i) => {
           const x = margin + diaColWidth + i * colWidth;
-          doc.rect(x, y, colWidth, headerRowHeight).fillAndStroke(CABECALHO, TINTA);
+          celula(x, y, colWidth, headerRowHeight);
           doc
+            .font(FONTE_NEGRITO)
             .fillColor(TINTA)
             .fontSize(6.5)
             .text(f.nome, x + 2, y + 3, {
@@ -257,8 +273,9 @@ export class EscalaPdfService {
               ? `${formatTime(f.turnoPadrao.horaInicio)}–${formatTime(f.turnoPadrao.horaFim)}`
               : 'sem turno';
           doc
+            .font(FONTE)
             .fontSize(6)
-            .fillColor(SUBTITULO)
+            .fillColor(TEXTO_SUAVE)
             .text(sub, x + 2, y + 11, {
               width: colWidth - 4,
               align: 'center',
@@ -276,6 +293,12 @@ export class EscalaPdfService {
         });
 
         y += headerRowHeight;
+        doc
+          .lineWidth(LINHA_DESTAQUE)
+          .strokeColor(TINTA)
+          .moveTo(margin, y)
+          .lineTo(pageWidth - margin, y)
+          .stroke();
       }
 
       desenharCabecalhoColunas();
@@ -314,10 +337,13 @@ export class EscalaPdfService {
             : `${diaNumero} (${diasSemana[dia.getUTCDay()]})`;
         mesAnoAnterior = mesAno;
 
+        // Domingo: cinza bem claro só na célula do dia (área pequena) +
+        // rótulo em negrito — o negrito sozinho já marca, o fundo só
+        // ajuda o olho a achar a semana.
+        if (domingo) doc.rect(margin, y, diaColWidth, rowHeight).fill(DOMINGO);
+        celula(margin, y, diaColWidth, rowHeight);
         doc
-          .rect(margin, y, diaColWidth, rowHeight)
-          .fillAndStroke(domingo ? DOMINGO : PAPEL, TINTA);
-        doc
+          .font(domingo ? FONTE_NEGRITO : FONTE)
           .fillColor(TINTA)
           .fontSize(Math.min(6.5, cellFontSize + 0.5))
           .text(
@@ -343,13 +369,24 @@ export class EscalaPdfService {
               !ehCoringa(f) &&
               !!f.turnoPadrao &&
               !turnoCobertoNoDia.has(`${f.turnoPadrao.id}|${diaIso}`);
-            const cor = feriado ? FERIADO : semCobertura ? FOLGA_ABERTA : FOLGA;
+            // Antes eram blocos pintados (folga em cinza escuro, folga
+            // descoberta em preto chapado) — a maior parte da tinta da
+            // folha. Agora só texto, cada caso com um peso diferente:
+            //   FOLGA   → cinza escuro, normal (é o caso comum, "recua")
+            //   FOLGA*  → preto, negrito + moldura fina (é o alerta)
+            //   FERIADO → preto, itálico
+            celula(x, y, colWidth, rowHeight);
             const label = feriado ? 'FERIADO' : semCobertura ? 'FOLGA*' : 'FOLGA';
-            // Sobre cinza claro o texto branco some: o feriado leva rótulo preto.
-            const corDoRotulo = feriado ? TINTA : PAPEL;
-            doc.rect(x, y, colWidth, rowHeight).fillAndStroke(cor, TINTA);
+            if (semCobertura) {
+              doc
+                .lineWidth(LINHA_DESTAQUE)
+                .strokeColor(TINTA)
+                .rect(x + 1.5, y + 1.5, colWidth - 3, rowHeight - 3)
+                .stroke();
+            }
             doc
-              .fillColor(corDoRotulo)
+              .font(feriado ? FONTE_ITALICO : semCobertura ? FONTE_NEGRITO : FONTE)
+              .fillColor(feriado || semCobertura ? TINTA : TEXTO_SUAVE)
               .fontSize(cellFontSize)
               .text(label, x, y + offsetY, {
                 width: colWidth,
@@ -358,19 +395,22 @@ export class EscalaPdfService {
             return;
           }
 
+          celula(x, y, colWidth, rowHeight);
           const ehPadrao = !ehCoringa(f) && alocacao.turnoId === f.turnoPadrao?.id;
           if (ehPadrao) {
-            doc.rect(x, y, colWidth, rowHeight).fillAndStroke(PAPEL, TINTA);
             doc
+              .font(FONTE)
               .fillColor(PONTO)
               .fontSize(cellFontSize)
               .text('•', x, y + offsetY, { width: colWidth, align: 'center' });
             return;
           }
 
-          doc.rect(x, y, colWidth, rowHeight).fillAndStroke(CABECALHO, TINTA);
+          // Turno alterado/coringa: antes ia sobre fundo cinza; agora o
+          // horário em negrito já salta aos olhos no meio dos "•".
           const label = `${formatTime(alocacao.turno.horaInicio)}–${formatTime(alocacao.turno.horaFim)}`;
           doc
+            .font(FONTE_NEGRITO)
             .fillColor(TINTA)
             .fontSize(cellFontSize)
             .text(label, x, y + offsetY, { width: colWidth, align: 'center' });
@@ -390,21 +430,23 @@ export class EscalaPdfService {
         doc.addPage();
         y = margin;
       }
+      // Legenda descreve a marcação nova (negrito/moldura/itálico), não mais cores.
       doc
+        .font(FONTE)
         .fillColor(TINTA)
         .fontSize(6.5)
         .text(
-          '• = turno padrão do titular   |   horário destacado = turno alterado, substituição ou coringa   |   FOLGA = dia de descanso',
+          '• = turno padrão do titular   |   horário em negrito = turno alterado, substituição ou coringa   |   FOLGA = dia de descanso   |   dia em negrito = domingo',
           margin,
           y,
         );
       doc.text(
-        'FOLGA* = vaga que ficou sem cobertura (ninguém disponível passou nas regras trabalhistas nesse dia)',
+        'FOLGA* (negrito, com moldura) = vaga que ficou sem cobertura (ninguém disponível passou nas regras trabalhistas nesse dia)',
         margin,
         y + 9,
       );
       doc.text(
-        'FERIADO = feriado nacional (Ano Novo, Páscoa, Dia do Trabalhador ou Natal) sem expediente por padrão do sistema — editável manualmente',
+        'FERIADO (itálico) = feriado nacional (Ano Novo, Páscoa, Dia do Trabalhador ou Natal) sem expediente por padrão do sistema — editável manualmente',
         margin,
         y + 18,
       );

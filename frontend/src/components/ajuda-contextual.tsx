@@ -2,8 +2,9 @@
 
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
-import { ajudaDaRota } from "@/lib/ajuda";
+import { ajudaDaRota, type ImagemAjuda } from "@/lib/ajuda";
 
 // Botão "Ajuda desta página" + painel lateral com o texto da tela atual.
 //
@@ -24,12 +25,21 @@ export function AjudaContextual() {
   const pathname = usePathname();
   const [abertoEm, setAbertoEm] = useState<string | null>(null);
   const gatilhoRef = useRef<HTMLButtonElement>(null);
+  const [ampliada, setAmpliadaEstado] = useState<ImagemAjuda | null>(null);
+  // Espelho em ref para o listener de teclado ler o valor atual sem
+  // precisar ser recriado a cada abertura de imagem.
+  const ampliadaRef = useRef<ImagemAjuda | null>(null);
+  function setAmpliada(imagem: ImagemAjuda | null) {
+    ampliadaRef.current = imagem;
+    setAmpliadaEstado(imagem);
+  }
 
   const ajuda = ajudaDaRota(pathname);
   const aberto = abertoEm === pathname;
 
   function fechar() {
     setAbertoEm(null);
+    setAmpliada(null);
     // Devolve o foco a quem abriu, para quem navega pelo teclado não
     // "cair" no início da página.
     gatilhoRef.current?.focus();
@@ -39,6 +49,11 @@ export function AjudaContextual() {
     if (!aberto) return;
     function onKeyDown(e: KeyboardEvent) {
       if (e.key === "Escape") {
+        // Com a imagem ampliada, o Esc fecha só ela (volta para o texto).
+        if (ampliadaRef.current) {
+          setAmpliada(null);
+          return;
+        }
         setAbertoEm(null);
         gatilhoRef.current?.focus();
       }
@@ -54,7 +69,10 @@ export function AjudaContextual() {
       <button
         ref={gatilhoRef}
         type="button"
-        onClick={() => setAbertoEm(pathname)}
+        onClick={() => {
+          setAmpliada(null);
+          setAbertoEm(pathname);
+        }}
         aria-haspopup="dialog"
         aria-expanded={aberto}
         className="flex items-center gap-2 rounded-lg bg-white/10 px-2 py-1.5 text-xs font-medium text-white transition-colors hover:bg-white/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
@@ -122,6 +140,36 @@ export function AjudaContextual() {
                   {ajuda.resumo}
                 </p>
 
+                {ajuda.imagens?.map((imagem) => (
+                  <figure key={imagem.src} className="mb-5">
+                    {/* No painel a foto fica pequena; clicar amplia na
+                        própria tela. (Aba nova não serve: o app desktop
+                        não abre outras janelas.) */}
+                    <button
+                      type="button"
+                      onClick={() => setAmpliada(imagem)}
+                      title="Ampliar a imagem"
+                      className="block w-full cursor-zoom-in overflow-hidden rounded-md border border-border transition-shadow hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                    >
+                      <Image
+                        src={imagem.src}
+                        alt={imagem.legenda}
+                        width={1280}
+                        height={800}
+                        // Arquivo estático já do tamanho certo: dispensa o
+                        // otimizador do Next (que precisaria do "sharp"
+                        // instalado no app desktop).
+                        unoptimized
+                        className="h-auto w-full"
+                      />
+                    </button>
+                    <figcaption className="mt-1.5 text-xs text-text-secondary">
+                      {imagem.legenda}{" "}
+                      <span className="whitespace-nowrap">(clique para ampliar)</span>
+                    </figcaption>
+                  </figure>
+                ))}
+
                 {ajuda.secoes.map((secao) => (
                   <section key={secao.titulo} className="mb-5">
                     <h3 className="mb-2 text-sm font-semibold text-text">
@@ -136,6 +184,27 @@ export function AjudaContextual() {
                 ))}
               </div>
             </aside>
+
+            {ampliada && (
+              // Por cima do painel; clicar em qualquer lugar ou Esc fecha.
+              <div
+                role="dialog"
+                aria-modal="true"
+                aria-label={ampliada.legenda}
+                onClick={() => setAmpliada(null)}
+                className="absolute inset-0 z-10 flex cursor-zoom-out flex-col items-center justify-center gap-3 bg-black/80 p-6"
+              >
+                <Image
+                  src={ampliada.src}
+                  alt={ampliada.legenda}
+                  width={1280}
+                  height={800}
+                  unoptimized
+                  className="h-auto max-h-[85vh] w-auto max-w-full rounded-md shadow-2xl"
+                />
+                <p className="text-sm text-white">{ampliada.legenda}</p>
+              </div>
+            )}
           </div>,
           document.body,
         )}

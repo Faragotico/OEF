@@ -66,6 +66,14 @@ function IconClipboardList() {
     </svg>
   );
 }
+function IconBriefcase() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-[18px] w-[18px]">
+      <rect x="2" y="7" width="20" height="14" rx="2" />
+      <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16" />
+    </svg>
+  );
+}
 function IconCalendar() {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-[18px] w-[18px]">
@@ -83,6 +91,8 @@ const links: { href: string; label: string; icon: () => ReactNode }[] = [
   { href: "/regras", label: "Regras", icon: IconFileText },
   { href: "/postos", label: "Postos", icon: IconMapPin },
   { href: "/turnos", label: "Turnos", icon: IconClock },
+  // Cargo vem antes de Funcionário: o cadastro da pessoa escolhe um.
+  { href: "/cargos", label: "Cargos", icon: IconBriefcase },
   { href: "/funcionarios", label: "Funcionários", icon: IconUsers },
   { href: "/ausencias", label: "Ausências", icon: IconUserOff },
   { href: "/escalas", label: "Escalas", icon: IconCalendar },

@@ -2,6 +2,7 @@
 
 import { usePathname, useRouter } from "next/navigation";
 import { rotuloPosto } from "@/lib/posto-rotulo";
+import { SelectPesquisavel } from "@/components/select-pesquisavel";
 
 type Funcionario = { id: number; nome: string; coringa: boolean };
 type Turno = {
@@ -129,51 +130,36 @@ export function AlocacoesFilter({
       <div className="grid grid-cols-1 gap-3 rounded-lg border border-border bg-card p-5 sm:grid-cols-2 lg:grid-cols-3">
         <label className="flex flex-col gap-1 text-sm text-text">
           Funcionário
-          <select
+          <SelectPesquisavel
             value={filtrosAtuais.funcionarioId ?? ""}
-            onChange={(e) => navegarComFiltro("funcionarioId", e.target.value)}
-            className={inputClass}
-          >
-            <option value="">Todos</option>
-            {funcionarios.map((f) => (
-              <option key={f.id} value={f.id}>
-                {f.nome}
-                {f.coringa ? " (coringa)" : ""}
-              </option>
-            ))}
-          </select>
+            onChange={(valor) => navegarComFiltro("funcionarioId", valor)}
+            vazio="Todos"
+            opcoes={funcionarios.map((f) => ({
+              valor: String(f.id),
+              rotulo: f.nome,
+              detalhe: f.coringa ? "Coringa" : undefined,
+            }))}
+          />
         </label>
 
         <label className="flex flex-col gap-1 text-sm text-text">
           Turno
-          <select
+          <SelectPesquisavel
             value={filtrosAtuais.turnoId ?? ""}
-            onChange={(e) => navegarComFiltro("turnoId", e.target.value)}
-            className={inputClass}
-          >
-            <option value="">Todos</option>
-            {turnos.map((t) => (
-              <option key={t.id} value={t.id}>
-                {turnoLabel(t)}
-              </option>
-            ))}
-          </select>
+            onChange={(valor) => navegarComFiltro("turnoId", valor)}
+            vazio="Todos"
+            opcoes={turnos.map((t) => ({ valor: String(t.id), rotulo: turnoLabel(t) }))}
+          />
         </label>
 
         <label className="flex flex-col gap-1 text-sm text-text">
           Escala
-          <select
+          <SelectPesquisavel
             value={filtrosAtuais.escalaId ?? ""}
-            onChange={(e) => navegarComFiltro("escalaId", e.target.value)}
-            className={inputClass}
-          >
-            <option value="">Todas</option>
-            {escalas.map((e) => (
-              <option key={e.id} value={e.id}>
-                {escalaLabel(e)}
-              </option>
-            ))}
-          </select>
+            onChange={(valor) => navegarComFiltro("escalaId", valor)}
+            vazio="Todas"
+            opcoes={escalas.map((e) => ({ valor: String(e.id), rotulo: escalaLabel(e) }))}
+          />
         </label>
 
         <label className="flex flex-col gap-1 text-sm text-text">

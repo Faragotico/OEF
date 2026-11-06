@@ -6,6 +6,8 @@ type Empresa = {
   nome: string;
   cnpj: string;
   contato: string | null;
+  logradouro: string | null;
+  cidade: string | null;
 };
 
 export default async function EditarEmpresaPage({
@@ -30,6 +32,8 @@ export default async function EditarEmpresaPage({
               nome: empresa.nome,
               cnpj: empresa.cnpj,
               contato: empresa.contato ?? "",
+              logradouro: empresa.logradouro ?? "",
+              cidade: empresa.cidade ?? "",
             }}
           />
         </div>

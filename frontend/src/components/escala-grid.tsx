@@ -4,6 +4,7 @@ import { useState } from "react";
 import { apiDelete, apiPatch, apiPost } from "@/lib/api";
 import { Aviso } from "@/components/aviso";
 import { Dica } from "@/components/dica";
+import { SelectPesquisavel } from "@/components/select-pesquisavel";
 
 type Turno = {
   id: number;
@@ -351,22 +352,17 @@ export function EscalaGrid({
 
       {candidatosRestantes.length > 0 && (
         <div className="flex flex-wrap items-center gap-2">
-          <select
+          {/* O posto (e empresa) vai no detalhe: dá pra buscar por ele. */}
+          <SelectPesquisavel
             value={candidatoSelecionado}
-            onChange={(e) => setCandidatoSelecionado(e.target.value)}
-            className="rounded-md border border-border bg-card px-2 py-1.5 text-sm text-text"
-          >
-            <option value="">Cobrir com funcionário de outro posto…</option>
-            {[...candidatosPorPosto].map(([posto, lista]) => (
-              <optgroup key={posto} label={posto}>
-                {lista.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.nome}
-                  </option>
-                ))}
-              </optgroup>
-            ))}
-          </select>
+            onChange={(valor) => setCandidatoSelecionado(valor)}
+            placeholder="Cobrir com funcionário de outro posto…"
+            aria-label="Funcionário de outro posto"
+            className="min-w-72"
+            opcoes={[...candidatosPorPosto].flatMap(([posto, lista]) =>
+              lista.map((c) => ({ valor: String(c.id), rotulo: c.nome, detalhe: posto })),
+            )}
+          />
           <button
             type="button"
             disabled={!candidatoSelecionado}

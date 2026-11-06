@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { apiPatch, apiPost } from "@/lib/api";
 import { Rotulo } from "@/components/rotulo";
 import { Aviso } from "@/components/aviso";
+import { SelectPesquisavel } from "@/components/select-pesquisavel";
 
 const inputClass =
   "rounded-md border border-border bg-card px-3 py-2 text-sm text-text";
@@ -100,19 +101,13 @@ export function PostoForm({
 
       <label className="flex flex-col gap-1 text-sm text-text">
         <Rotulo obrigatorio>Empresa</Rotulo>
-        <select
+        <SelectPesquisavel
           required
           value={form.empresaId}
-          onChange={(e) => setForm({ ...form, empresaId: e.target.value })}
-          className={inputClass}
-        >
-          {empresas.length === 0 && <option value="">Nenhuma cadastrada</option>}
-          {empresas.map((e) => (
-            <option key={e.id} value={e.id}>
-              {e.nome}
-            </option>
-          ))}
-        </select>
+          onChange={(valor) => setForm({ ...form, empresaId: valor })}
+          placeholder={empresas.length === 0 ? "Nenhuma cadastrada" : "Selecione…"}
+          opcoes={empresas.map((e) => ({ valor: String(e.id), rotulo: e.nome }))}
+        />
       </label>
       {empresas.length === 0 && (
         <p className="-mt-2 text-xs text-zinc-500 dark:text-zinc-400">

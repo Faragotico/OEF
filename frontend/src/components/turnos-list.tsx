@@ -6,7 +6,7 @@ import { DeleteButton } from "@/components/delete-button";
 import { TurnoForm } from "@/components/turno-form";
 import { Modal } from "@/components/modal";
 import { Paginacao } from "@/components/paginacao";
-import { rotuloPosto } from "@/lib/posto-rotulo";
+import { SelectPesquisavel } from "@/components/select-pesquisavel";
 import { PostoNome } from "@/components/posto-nome";
 
 type Turno = {
@@ -127,21 +127,18 @@ export function TurnosList({
           placeholder="Buscar pela descrição do turno"
           className={`min-w-64 flex-1 ${inputClass}`}
         />
-        <select
+        <SelectPesquisavel
           value={postoIdAtual}
-          onChange={(e) =>
-            navegar({ busca: busca.trim(), postoId: e.target.value })
-          }
-          className={inputClass}
+          onChange={(valor) => navegar({ busca: busca.trim(), postoId: valor })}
+          className="min-w-64"
           aria-label="Filtrar por posto"
-        >
-          <option value="">Todos os postos</option>
-          {postos.map((p) => (
-            <option key={p.id} value={p.id}>
-              {rotuloPosto(p)}
-            </option>
-          ))}
-        </select>
+          vazio="Todos os postos"
+          opcoes={postos.map((p) => ({
+            valor: String(p.id),
+            rotulo: p.nome,
+            detalhe: p.empresa?.nome ?? undefined,
+          }))}
+        />
         <button
           type="submit"
           className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-primary-hover"

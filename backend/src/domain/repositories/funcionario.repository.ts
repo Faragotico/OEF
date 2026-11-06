@@ -21,6 +21,7 @@ export class FuncionarioRepository {
   private readonly include = {
     turnoPadrao: true,
     posto: { include: { empresa: true } },
+    cargo: true,
     habilitacoes: true,
   };
 

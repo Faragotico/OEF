@@ -7,7 +7,7 @@ import { NovoFuncionarioForm } from "@/components/novo-funcionario-form";
 import { EditarFuncionarioForm } from "@/components/editar-funcionario-form";
 import { Modal } from "@/components/modal";
 import { Paginacao } from "@/components/paginacao";
-import { rotuloPosto } from "@/lib/posto-rotulo";
+import { SelectPesquisavel } from "@/components/select-pesquisavel";
 import { PostoNome } from "@/components/posto-nome";
 
 type Turno = {
@@ -30,7 +30,8 @@ type Funcionario = {
   nome: string;
   cpf: string;
   telefone: string | null;
-  cargo: string | null;
+  cargo: { id: number; nome: string } | null;
+  cargoId: number | null;
   cargaHorariaSemanal: number;
   status: boolean;
   turnoPadraoId: number | null;
@@ -157,25 +158,24 @@ export function FuncionariosList({
           placeholder="Buscar por nome, CPF, telefone ou cargo"
           className={`min-w-64 flex-1 ${inputClass}`}
         />
-        <select
+        <SelectPesquisavel
           value={postoIdAtual}
-          onChange={(e) =>
+          onChange={(valor) =>
             navegar({
               busca: busca.trim(),
-              postoId: e.target.value,
+              postoId: valor,
               status: statusAtual,
             })
           }
-          className={inputClass}
+          className="min-w-64"
           aria-label="Filtrar por posto"
-        >
-          <option value="">Todos os postos</option>
-          {postos.map((p) => (
-            <option key={p.id} value={p.id}>
-              {rotuloPosto(p)}
-            </option>
-          ))}
-        </select>
+          vazio="Todos os postos"
+          opcoes={postos.map((p) => ({
+            valor: String(p.id),
+            rotulo: p.nome,
+            detalhe: p.empresa?.nome ?? undefined,
+          }))}
+        />
         <select
           value={statusAtual}
           onChange={(e) =>
@@ -238,7 +238,7 @@ export function FuncionariosList({
                 <td className="px-4 py-3">{f.nome}</td>
                 <td className="px-4 py-3">{f.cpf}</td>
                 <td className="px-4 py-3">{f.telefone}</td>
-                <td className="px-4 py-3">{f.cargo ?? "—"}</td>
+                <td className="px-4 py-3">{f.cargo?.nome ?? "—"}</td>
                 <td className="px-4 py-3">{f.cargaHorariaSemanal}h</td>
                 <td className="px-4 py-3">
                   {f.posto ? (
@@ -347,7 +347,7 @@ export function FuncionariosList({
               nome: modal.funcionario.nome,
               cpf: modal.funcionario.cpf,
               telefone: modal.funcionario.telefone ?? "",
-              cargo: modal.funcionario.cargo ?? "",
+              cargoId: modal.funcionario.cargoId ? String(modal.funcionario.cargoId) : "",
               cargaHorariaSemanal: modal.funcionario.cargaHorariaSemanal,
               status: modal.funcionario.status,
               turnoPadraoId: modal.funcionario.turnoPadraoId

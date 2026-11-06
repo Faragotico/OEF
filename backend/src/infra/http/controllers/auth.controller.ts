@@ -20,11 +20,18 @@ export class AuthController {
   constructor(private readonly auth: AuthService) {}
 
   private opcoesCookie(duracaoSegundos: number): CookieOptions {
-    const producao = process.env.NODE_ENV === 'production';
+    // Cookie `secure` só viaja por HTTPS. O padrão segue o NODE_ENV
+    // (produção = HTTPS), mas o app desktop roda em produção sobre
+    // http://localhost — lá COOKIE_SEGURO=false, senão o login nunca
+    // chegaria ao navegador.
+    const seguro =
+      process.env.COOKIE_SEGURO !== undefined
+        ? process.env.COOKIE_SEGURO === 'true'
+        : process.env.NODE_ENV === 'production';
     return {
       httpOnly: true, // JavaScript da página não lê
       sameSite: 'lax', // não viaja em requisição de outro site
-      secure: producao, // só por HTTPS em produção (em dev quebraria o http://localhost)
+      secure: seguro,
       path: '/',
       maxAge: duracaoSegundos * 1000, // o express espera milissegundos
     };

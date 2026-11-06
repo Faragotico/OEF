@@ -2,6 +2,7 @@
 
 import { Rotulo } from "@/components/rotulo";
 import { Dica } from "@/components/dica";
+import { SelectPesquisavel } from "@/components/select-pesquisavel";
 
 type Turno = {
   id: number;
@@ -12,7 +13,7 @@ type Turno = {
 };
 
 export type CamposEscala = {
-  /** Valor do <select>, por isso string e não number. */
+  /** Valor do seletor, por isso string e não number. */
   turnoPadraoId: string;
   coringa: boolean;
   turnosHabilitadosIds: number[];
@@ -20,9 +21,6 @@ export type CamposEscala = {
 };
 
 const DIAS = ["domingo", "segunda", "terça", "quarta", "quinta", "sexta", "sábado"];
-
-const inputClass =
-  "rounded-md border border-border bg-card px-3 py-2 text-sm text-text";
 
 export function turnoLabel(t: Turno) {
   return t.descricao
@@ -111,19 +109,13 @@ export function FuncionarioCamposEscala({
           <Rotulo opcional dica="Horário em que a geração escala esta pessoa.">
             Turno de casa
           </Rotulo>
-          <select
+          <SelectPesquisavel
             value={valor.turnoPadraoId}
-            onChange={(e) => onChange({ ...valor, turnoPadraoId: e.target.value })}
+            onChange={(turnoPadraoId) => onChange({ ...valor, turnoPadraoId })}
             disabled={!postoId}
-            className={inputClass + " disabled:opacity-60"}
-          >
-            <option value="">Sem turno de casa</option>
-            {turnosDoPosto.map((t) => (
-              <option key={t.id} value={t.id}>
-                {turnoLabel(t)}
-              </option>
-            ))}
-          </select>
+            vazio="Sem turno de casa"
+            opcoes={turnosDoPosto.map((t) => ({ valor: String(t.id), rotulo: turnoLabel(t) }))}
+          />
         </label>
       )}
 

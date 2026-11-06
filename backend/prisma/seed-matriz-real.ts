@@ -140,7 +140,7 @@ async function main() {
       create: {
         nome: p.nome,
         cpf,
-        cargo: 'Porteiro',
+        cargoId: (await prisma.cargo.upsert({ where: { nome: 'Porteiro' }, update: {}, create: { nome: 'Porteiro' } })).id,
         cargaHorariaSemanal: 44,
         status: true,
         turnoPadraoId: padraoId,

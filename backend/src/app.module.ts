@@ -11,6 +11,7 @@ import { TurnoModule } from './modules/turno.module';
 import { EscalaModule } from './modules/escala.module';
 import { AusenciaModule } from './modules/ausencia.module';
 import { AuthModule } from './modules/auth.module';
+import { CargoModule } from './modules/cargo.module';
 import { JwtAuthGuard } from './infra/http/guards/jwt-auth.guard';
 
 // O módulo raiz. Importa os modules de cada funcionalidade — assim o
@@ -33,6 +34,7 @@ import { JwtAuthGuard } from './infra/http/guards/jwt-auth.guard';
     TurnoModule,
     EscalaModule,
     AusenciaModule,
+    CargoModule,
   ],
   controllers: [AppController],
   providers: [

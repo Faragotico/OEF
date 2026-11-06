@@ -11,7 +11,8 @@ import {
   type CamposEscala,
   FuncionarioCamposEscala,
 } from "@/components/funcionario-campos-escala";
-import { rotuloPosto } from "@/lib/posto-rotulo";
+import { SelectPesquisavel } from "@/components/select-pesquisavel";
+import { CampoCargo } from "@/components/campo-cargo";
 
 type Turno = {
   id: number;
@@ -32,7 +33,7 @@ export type ValoresFuncionario = {
   nome: string;
   cpf: string;
   telefone: string;
-  cargo: string;
+  cargoId: string;
   cargaHorariaSemanal: number;
   status: boolean;
   postoId: string;
@@ -88,7 +89,7 @@ export function EditarFuncionarioForm({
       await apiPatch(`/funcionarios/${id}`, {
         nome: form.nome,
         telefone: form.telefone || undefined,
-        cargo: form.cargo.trim() || null,
+        cargoId: form.cargoId ? Number(form.cargoId) : null,
         cargaHorariaSemanal: Number(form.cargaHorariaSemanal),
         status: form.status,
         postoId: form.postoId ? Number(form.postoId) : null,
@@ -146,16 +147,12 @@ export function EditarFuncionarioForm({
       </label>
 
       <label className="flex flex-col gap-1 text-sm text-text">
-        <Rotulo opcional dica="Só uma etiqueta do que a pessoa faz. Não altera a escala.">
+        <Rotulo opcional dica="Só uma etiqueta do que a pessoa faz. Não altera a escala. Se não estiver na lista, digite e clique em “+ Cadastrar”.">
           Cargo
         </Rotulo>
-        <input
-          minLength={2}
-          maxLength={80}
-          placeholder="Ex.: Operadora de Caixa"
-          value={form.cargo}
-          onChange={(e) => setForm({ ...form, cargo: e.target.value })}
-          className={inputClass}
+        <CampoCargo
+          value={form.cargoId}
+          onChange={(cargoId) => setForm({ ...form, cargoId })}
         />
       </label>
 
@@ -177,14 +174,20 @@ export function EditarFuncionarioForm({
 
       <label className="flex flex-col gap-1 text-sm text-text">
         <Rotulo opcional>Posto de trabalho</Rotulo>
-        <select
+        <SelectPesquisavel
           value={form.postoId}
-          onChange={(e) => {
+          vazio="Sem posto definido"
+          aria-label="Posto de trabalho"
+          opcoes={postos.map((p) => ({
+            valor: String(p.id),
+            rotulo: p.nome,
+            detalhe: [p.empresa?.nome, p.localizacao].filter(Boolean).join(" — "),
+          }))}
+          onChange={(novoPostoId) => {
             // Trocar de posto zera turno de casa e habilitações: elas
             // apontam pra turnos que não existem na grade do novo posto.
             // Coringa já vem habilitado em toda a grade do posto NOVO
             // (mesma regra de marcar a caixa de coringa).
-            const novoPostoId = e.target.value;
             setForm({ ...form, postoId: novoPostoId });
             setEscala({
               ...escala,
@@ -197,15 +200,7 @@ export function EditarFuncionarioForm({
                   : [],
             });
           }}
-          className={inputClass}
-        >
-          <option value="">Sem posto definido</option>
-          {postos.map((p) => (
-            <option key={p.id} value={p.id}>
-              {rotuloPosto(p)} — {p.localizacao}
-            </option>
-          ))}
-        </select>
+        />
       </label>
 
       <FuncionarioCamposEscala

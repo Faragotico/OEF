@@ -6,7 +6,7 @@ import { apiPatch, apiPost } from "@/lib/api";
 import { Rotulo } from "@/components/rotulo";
 import { Dica } from "@/components/dica";
 import { Aviso } from "@/components/aviso";
-import { rotuloPosto } from "@/lib/posto-rotulo";
+import { SelectPesquisavel } from "@/components/select-pesquisavel";
 
 const inputClass =
   "rounded-md border border-border bg-card px-3 py-2 text-sm text-text";
@@ -130,18 +130,16 @@ export function TurnoForm({
         <Rotulo opcional dica="Turno sem posto é avulso: não faz parte da grade de nenhum posto.">
           Posto de trabalho
         </Rotulo>
-        <select
+        <SelectPesquisavel
           value={form.postoId}
-          onChange={(e) => setForm({ ...form, postoId: e.target.value })}
-          className={inputClass}
-        >
-          <option value="">Avulso (sem posto)</option>
-          {postos.map((p) => (
-            <option key={p.id} value={p.id}>
-              {rotuloPosto(p)} — {p.localizacao}
-            </option>
-          ))}
-        </select>
+          onChange={(valor) => setForm({ ...form, postoId: valor })}
+          vazio="Avulso (sem posto)"
+          opcoes={postos.map((p) => ({
+            valor: String(p.id),
+            rotulo: p.nome,
+            detalhe: [p.empresa?.nome, p.localizacao].filter(Boolean).join(" — "),
+          }))}
+        />
       </label>
 
       {form.postoId && (

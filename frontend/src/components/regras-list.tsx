@@ -254,7 +254,7 @@ export function RegrasList({
             );
           })}
         </div>
-        <p className="mt-3 rounded-lg border border-border bg-text/5 px-3 py-2 text-xs text-text-secondary">Descanso Semanal Remunerado: limite legal fixo de 6 dias seguidos, não configurável.</p>
+        <p className="mt-3 rounded-lg border border-border bg-text/5 px-3 py-2 text-xs text-text-secondary">Descanso semanal: no máximo 6 dias seguidos de trabalho; o 7º precisa ser folga. Limite legal, não configurável.</p>
       </section>
 
       {/* Padrões de rodízio — aqui sim pode ter vários (5x1, 6x1...),

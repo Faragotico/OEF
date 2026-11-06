@@ -2,29 +2,35 @@
 
 // Processo principal do OEF desktop (Electron).
 //
-// Passo 1 (este arquivo): o Electron sobe o servidor standalone do
-// frontend e abre uma janela apontando para ele. O backend (Nest) e o
-// banco AINDA rodam soltos, como no desenvolvimento — os próximos passos
-// os trazem para dentro do app.
+// O Electron sobe dois processos filhos — o backend (Nest, dist/src/main.js)
+// e o servidor standalone do frontend — e abre uma janela apontando para o
+// frontend. O banco (Postgres) AINDA roda solto, como no desenvolvimento:
+// o passo 3 o traz para dentro do app.
 
 const { app, BrowserWindow, Menu, dialog, shell } = require("electron");
 const { spawn } = require("node:child_process");
+const crypto = require("node:crypto");
 const fs = require("node:fs");
 const http = require("node:http");
 const path = require("node:path");
+const { parseEnv } = require("node:util");
 
 const PORTA_FRONT = 3000;
+// Fixa: o endereço da API é gravado no build do frontend (NEXT_PUBLIC_API_URL).
+const PORTA_API = 3001;
 // A janela abre em "localhost" (e não 127.0.0.1) de propósito: a API
 // também é "localhost:3001", e cookie é por nome de host. Misturar os
 // dois nomes faria o cookie de login não chegar ao backend.
 const ORIGEM_FRONT = `http://localhost:${PORTA_FRONT}`;
-const ORIGEM_API = "http://localhost:3001";
-// O servidor escuta no IP direto; é só a checagem de "já subiu?".
+const ORIGEM_API = `http://localhost:${PORTA_API}`;
+// Os servidores escutam no IP direto (só a própria máquina alcança);
+// estes são só para a checagem de "já subiu?".
 const TESTE_FRONT = `http://127.0.0.1:${PORTA_FRONT}`;
+const TESTE_API = `http://127.0.0.1:${PORTA_API}`;
 
 const MODO_DEV = process.argv.includes("--dev");
 
-let filhoFront = null;
+const filhos = [];
 let janela = null;
 let encerrando = false;
 
@@ -59,46 +65,100 @@ function falhar(mensagem) {
   app.quit();
 }
 
-// ---------- servidor do frontend ----------
+// ---------- processos filhos ----------
 
-// Onde está o server.js gerado por `next build`. Em desenvolvimento é a
-// pasta do frontend; quando virar instalador (passo 5) ele passa a ir
-// junto do app e este caminho muda.
+// Sobe um script Node usando o próprio Electron: process.execPath é o
+// executável do Electron e, com ELECTRON_RUN_AS_NODE, ele se comporta como
+// o Node comum. Assim o app não depende de ter Node instalado na máquina.
+function iniciarFilho(nome, script, env) {
+  const filho = spawn(process.execPath, [script], {
+    cwd: path.dirname(script),
+    env: { ...process.env, ELECTRON_RUN_AS_NODE: "1", ...env },
+    stdio: "inherit",
+    windowsHide: true,
+  });
+  filhos.push(filho);
+
+  filho.on("exit", (codigo) => {
+    const i = filhos.indexOf(filho);
+    if (i >= 0) filhos.splice(i, 1);
+    if (!encerrando) {
+      falhar(`O ${nome} parou sozinho (código ${codigo}).`);
+    }
+  });
+}
+
+function encerrarFilhos() {
+  encerrando = true;
+  for (const filho of filhos.splice(0)) filho.kill();
+}
+
+// ---------- backend ----------
+
+// Caminhos apontam para a pasta do repositório; quando virar instalador
+// (passo 5) passam a usar process.resourcesPath.
+function caminhoDoBackend() {
+  // dist/src (e não dist/) porque o tsconfig também compila prisma/ e scripts/.
+  return path.resolve(__dirname, "..", "backend", "dist", "src", "main.js");
+}
+
+// O backend recusa subir sem JWT_SECRET. Cada instalação gera o seu na
+// primeira execução e guarda em userData (%APPDATA%/OEF): assim não há
+// segredo fixo dentro do instalador, e reinstalar não derruba as sessões.
+function segredoJwt() {
+  const arquivo = path.join(app.getPath("userData"), "jwt-secret.txt");
+  try {
+    const salvo = fs.readFileSync(arquivo, "utf8").trim();
+    if (salvo.length >= 32) return salvo;
+  } catch {
+    // ainda não existe: gera abaixo
+  }
+  const novo = crypto.randomBytes(48).toString("hex");
+  fs.mkdirSync(path.dirname(arquivo), { recursive: true });
+  fs.writeFileSync(arquivo, novo, { encoding: "utf8", mode: 0o600 });
+  return novo;
+}
+
+// TEMPORÁRIO (até o passo 3, Postgres embutido): o banco ainda é o
+// Postgres de desenvolvimento, e o endereço vem do backend/.env.
+function urlDoBanco() {
+  if (process.env.DATABASE_URL) return process.env.DATABASE_URL;
+  try {
+    const env = parseEnv(
+      fs.readFileSync(path.resolve(__dirname, "..", "backend", ".env"), "utf8"),
+    );
+    return env.DATABASE_URL;
+  } catch {
+    return undefined;
+  }
+}
+
+function iniciarBack(script, databaseUrl) {
+  iniciarFilho("servidor da API", script, {
+    NODE_ENV: "production",
+    PORT: String(PORTA_API),
+    HOST: "127.0.0.1",
+    FRONTEND_URL: ORIGEM_FRONT,
+    DATABASE_URL: databaseUrl,
+    JWT_SECRET: segredoJwt(),
+    // Produção, mas em http://localhost: cookie `secure` não seria aceito.
+    COOKIE_SEGURO: "false",
+  });
+}
+
+// ---------- frontend ----------
+
+// Onde está o server.js gerado por `next build`.
 function caminhoDoServidorFront() {
   return path.resolve(__dirname, "..", "frontend", ".next", "standalone", "server.js");
 }
 
 function iniciarFront(servidor) {
-  // process.execPath é o próprio Electron; com ELECTRON_RUN_AS_NODE ele
-  // se comporta como o Node comum. Assim o app não depende de ter Node
-  // instalado na máquina de quem vai usar.
-  filhoFront = spawn(process.execPath, [servidor], {
-    cwd: path.dirname(servidor),
-    env: {
-      ...process.env,
-      ELECTRON_RUN_AS_NODE: "1",
-      NODE_ENV: "production",
-      PORT: String(PORTA_FRONT),
-      HOSTNAME: "127.0.0.1",
-    },
-    stdio: "inherit",
-    windowsHide: true,
+  iniciarFilho("servidor da interface", servidor, {
+    NODE_ENV: "production",
+    PORT: String(PORTA_FRONT),
+    HOSTNAME: "127.0.0.1",
   });
-
-  filhoFront.on("exit", (codigo) => {
-    filhoFront = null;
-    if (!encerrando) {
-      falhar(`O servidor da interface parou sozinho (código ${codigo}).`);
-    }
-  });
-}
-
-function encerrarFront() {
-  encerrando = true;
-  if (filhoFront) {
-    filhoFront.kill();
-    filhoFront = null;
-  }
 }
 
 // ---------- janela ----------
@@ -175,6 +235,14 @@ function criarJanela() {
 async function iniciar() {
   Menu.setApplicationMenu(null);
 
+  // As portas são fixas; se já há algo nelas, provavelmente é o
+  // `pnpm dev`/`pnpm start:dev` do desenvolvimento esquecido aberto.
+  if (await responde(TESTE_API)) {
+    return falhar(
+      `A porta ${PORTA_API} já está em uso.\n` +
+        "Se o backend está rodando com `pnpm start:dev`, pare ele e abra o OEF de novo.",
+    );
+  }
   if (await responde(TESTE_FRONT)) {
     return falhar(
       `A porta ${PORTA_FRONT} já está em uso.\n` +
@@ -182,26 +250,38 @@ async function iniciar() {
     );
   }
 
-  if (!(await responde(ORIGEM_API))) {
+  const back = caminhoDoBackend();
+  if (!fs.existsSync(back)) {
     return falhar(
-      `Não consegui falar com o backend em ${ORIGEM_API}.\n` +
-        "Neste passo ele ainda roda separado: suba o Postgres e rode `pnpm start:dev` na pasta backend.",
+      "Não achei o backend compilado (backend/dist/src/main.js).\n" +
+        "Rode `pnpm back:build` na pasta desktop.",
     );
   }
-
-  const servidor = caminhoDoServidorFront();
-  if (!fs.existsSync(servidor)) {
+  const front = caminhoDoServidorFront();
+  if (!fs.existsSync(front)) {
     return falhar(
       "Não achei o frontend compilado (frontend/.next/standalone/server.js).\n" +
         "Rode `pnpm front:build` na pasta desktop.",
     );
   }
-
-  iniciarFront(servidor);
-
-  if (!(await esperarResponder(TESTE_FRONT, 60))) {
-    return falhar("A interface não respondeu em 30 segundos.");
+  const databaseUrl = urlDoBanco();
+  if (!databaseUrl) {
+    return falhar(
+      "Não achei DATABASE_URL (nem no ambiente, nem em backend/.env).\n" +
+        "Neste passo o Postgres ainda roda separado: configure o backend/.env.",
+    );
   }
+
+  // Os dois sobem juntos; a janela só abre quando ambos respondem.
+  iniciarBack(back, databaseUrl);
+  iniciarFront(front);
+
+  const [apiOk, frontOk] = await Promise.all([
+    esperarResponder(TESTE_API, 60),
+    esperarResponder(TESTE_FRONT, 60),
+  ]);
+  if (!apiOk) return falhar("A API não respondeu em 30 segundos.");
+  if (!frontOk) return falhar("A interface não respondeu em 30 segundos.");
 
   criarJanela();
 }
@@ -217,7 +297,7 @@ if (!app.requestSingleInstanceLock()) {
       janela.focus();
     }
   });
-  app.on("before-quit", encerrarFront);
+  app.on("before-quit", encerrarFilhos);
   app.on("window-all-closed", () => app.quit());
   app.whenReady().then(iniciar);
 }

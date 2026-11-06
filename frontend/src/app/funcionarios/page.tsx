@@ -16,7 +16,8 @@ type Funcionario = {
   nome: string;
   cpf: string;
   telefone: string | null;
-  cargo: string | null;
+  cargo: { id: number; nome: string } | null;
+  cargoId: number | null;
   cargaHorariaSemanal: number;
   status: boolean;
   turnoPadraoId: number | null;

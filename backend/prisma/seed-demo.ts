@@ -194,7 +194,7 @@ async function main() {
             nome: `${primeiro} ${sobrenome}`,
             cpf,
             telefone: `(42) 99911-${String(telefoneSeq).padStart(4, '0')}`,
-            cargo: CARGOS[nomeIndex % 2],
+            cargoId: (await prisma.cargo.upsert({ where: { nome: CARGOS[nomeIndex % 2] }, update: {}, create: { nome: CARGOS[nomeIndex % 2] } })).id,
             cargaHorariaSemanal: 44,
             status: true,
             turnoPadraoId: config.turnoPadraoId,

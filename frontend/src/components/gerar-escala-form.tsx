@@ -14,7 +14,7 @@ import {
   RAZAO_VAGA_VAZIA,
   REGRA_CURTA,
 } from "@/lib/diagnosticos";
-import { rotuloPosto } from "@/lib/posto-rotulo";
+import { SelectPesquisavel } from "@/components/select-pesquisavel";
 
 type Posto = {
   id: number;
@@ -391,18 +391,16 @@ export function GerarEscalaForm({
       <form onSubmit={handleSubmit} className="flex flex-col gap-4">
         <label className="flex flex-col gap-1 text-sm text-text">
           <Rotulo obrigatorio>Posto de trabalho</Rotulo>
-          <select
+          <SelectPesquisavel
             required
             value={postoId}
-            onChange={(e) => setPostoId(e.target.value)}
-            className={inputClass}
-          >
-            {postos.map((p) => (
-              <option key={p.id} value={p.id}>
-                {rotuloPosto(p)} — {p.localizacao}
-              </option>
-            ))}
-          </select>
+            onChange={(valor) => setPostoId(valor)}
+            opcoes={postos.map((p) => ({
+              valor: String(p.id),
+              rotulo: p.nome,
+              detalhe: [p.empresa?.nome, p.localizacao].filter(Boolean).join(" — "),
+            }))}
+          />
         </label>
 
         {/* A grade de horários do posto, visível antes de gerar. É a

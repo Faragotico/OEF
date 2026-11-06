@@ -13,30 +13,58 @@ export type SecaoAjuda = {
   itens: string[];
 };
 
+// Foto da tela (captura em public/ajuda/). Mostrar onde fica cada coisa
+// ajuda mais que descrever — foi um pedido da banca.
+export type ImagemAjuda = {
+  src: string;
+  legenda: string;
+};
+
 export type AjudaPagina = {
   titulo: string;
   resumo: string;
+  imagens?: ImagemAjuda[];
   secoes: SecaoAjuda[];
 };
 
+const img = (arquivo: string, legenda: string): ImagemAjuda => ({
+  src: `/ajuda/${arquivo}.png`,
+  legenda,
+});
+
 const INICIO: AjudaPagina = {
   titulo: "Tela inicial",
-  resumo: "Atalhos para cada área do sistema.",
+  resumo:
+    "O OEF monta a escala de cada posto automaticamente, respeitando as regras trabalhistas. Os cartões levam a cada área; o menu lateral tem as mesmas áreas.",
+  imagens: [img("inicio", "A tela inicial, com um cartão para cada área do sistema.")],
   secoes: [
     {
-      titulo: "Por onde começar",
+      titulo: "Primeira vez: cadastre nesta ordem",
       itens: [
-        "Cadastre a Empresa e, dentro dela, o Posto de trabalho.",
-        "Crie os Turnos do posto (horário e dias da semana).",
-        "Cadastre os Funcionários e ligue cada um a um posto.",
-        "Em Escalas, clique em “+ Gerar escala” para montar o período.",
+        "Empresas: a empresa atendida (nome, CNPJ, endereço).",
+        "Postos: os locais de trabalho de cada empresa.",
+        "Turnos: os horários de cada posto e os dias da semana em que existem.",
+        "Cargos: Porteiro, Recepcionista… (também dá para criar direto no cadastro do funcionário).",
+        "Funcionários: cada pessoa com seu posto e seu turno de casa (ou como coringa).",
+        "Regras (opcional): o padrão de rodízio (5x1, 6x1…). Sem mudar nada, valem os limites da CLT.",
+      ],
+    },
+    {
+      titulo: "Todo mês",
+      itens: [
+        "Ausências: lance férias, atestados e faltas ANTES de gerar, para a pessoa não ser escalada nesses dias.",
+        "Escalas → “+ Gerar escala”: escolha o posto e o período, simule e gere.",
+        "Abra a escala gerada, ajuste o que precisar na grade, valide e baixe o PDF para imprimir.",
+        "Alocações: consulte quem trabalhou em qual dia e turno, de todas as escalas.",
       ],
     },
     {
       titulo: "Dicas",
       itens: [
-        "Em qualquer tela, o botão “Ajuda desta página” (menu lateral) explica como usá-la.",
-        "O “?” ao lado de um campo dá uma dica rápida sobre ele.",
+        "Em qualquer tela, “Ajuda desta página” (menu lateral) explica aquela tela.",
+        "O “?” ao lado de um campo dá uma dica rápida sobre ele. Campo com * é obrigatório.",
+        "Nas listas de escolha (posto, cargo, funcionário…), clique e digite parte do nome para filtrar.",
+        "No rodapé do menu: “Sair” encerra a sessão e o botão de tema troca entre claro e escuro.",
       ],
     },
   ],
@@ -45,30 +73,41 @@ const INICIO: AjudaPagina = {
 const EMPRESAS: AjudaPagina = {
   titulo: "Empresas",
   resumo: "Empresas atendidas. Cada posto de trabalho pertence a uma empresa.",
+  imagens: [img("empresas", "Lista de empresas, com busca e o botão “+ Nova Empresa”.")],
   secoes: [
     {
       titulo: "Como usar",
       itens: [
-        "Use a busca para achar por nome, CNPJ ou contato.",
-        "“+ Nova Empresa” abre o formulário numa janela.",
-        "Para corrigir um dado, use Editar na linha.",
-        "Excluir só funciona se a empresa não tiver postos vinculados.",
+        "Busque por nome, CNPJ ou telefone de contato.",
+        "“+ Nova Empresa”: nome, CNPJ, cidade e rua são obrigatórios; o telefone é opcional.",
+        "O CNPJ vai sem pontos nem barra (14 caracteres); o sistema confere se ele é válido.",
+        "Editar corrige os dados; Excluir só funciona se a empresa não tiver postos.",
       ],
+    },
+    {
+      titulo: "Próximo passo",
+      itens: ["Cadastre os postos da empresa em Postos."],
     },
   ],
 };
 
 const POSTOS: AjudaPagina = {
   titulo: "Postos de trabalho",
-  resumo: "Locais onde as escalas são montadas.",
+  resumo: "Locais de trabalho de cada empresa. A escala é sempre montada por posto.",
+  imagens: [img("postos", "Lista de postos: busca, filtro por empresa e “+ Novo Posto”.")],
   secoes: [
     {
       titulo: "Como usar",
       itens: [
-        "Busque por nome ou localização; o filtro de empresa mostra só os postos de uma delas.",
-        "“+ Novo Posto”: informe nome, localização e a empresa.",
-        "Um posto só gera escala se tiver Turnos e Funcionários.",
-        "Excluir só funciona se o posto não tiver escalas vinculadas.",
+        "Busque por nome ou localização; o filtro de empresa mostra só os postos dela.",
+        "“+ Novo Posto”: nome, localização e a empresa (digite para buscar na lista).",
+        "Editar corrige os dados; Excluir só funciona se o posto não tiver escalas.",
+      ],
+    },
+    {
+      titulo: "Para o posto gerar escala",
+      itens: [
+        "Ele precisa de Turnos (os horários dele) e de Funcionários ligados a ele.",
       ],
     },
   ],
@@ -76,21 +115,22 @@ const POSTOS: AjudaPagina = {
 
 const TURNOS: AjudaPagina = {
   titulo: "Turnos",
-  resumo: "Horários de trabalho de cada posto.",
+  resumo: "Os horários de cada posto e em que dias da semana cada um existe.",
+  imagens: [img("turnos", "Turnos de cada posto, com os dias da semana em que cada um existe.")],
   secoes: [
     {
       titulo: "Como usar",
       itens: [
         "Busque pela descrição ou filtre por posto.",
-        "“+ Novo Turno”: informe início, fim, o posto e os dias da semana.",
-        "Nos dias, clique para abrir ou fechar. Dia fechado não gera vaga.",
-        "Excluir só funciona se não houver alocações vinculadas ao turno.",
+        "“+ Novo Turno”: início, fim e o posto. A descrição (Manhã, Abertura…) é opcional.",
+        "Depois de escolher o posto, clique nos dias da semana para abrir ou fechar o turno. Dia fechado não gera vaga.",
+        "Excluir só funciona se o turno não estiver em nenhuma escala.",
       ],
     },
     {
       titulo: "Bom saber",
       itens: [
-        "Sem turno no domingo, mais gente fica de folga.",
+        "Sem turno no domingo = mais gente de folga no domingo.",
         "Para cobrir um pico, cadastre outro turno com horário próprio.",
         "Turno sem posto é avulso: não entra na grade de nenhum posto.",
       ],
@@ -98,25 +138,60 @@ const TURNOS: AjudaPagina = {
   ],
 };
 
-const FUNCIONARIOS: AjudaPagina = {
-  titulo: "Funcionários",
-  resumo: "Equipe cadastrada e o posto de cada pessoa.",
+const CARGOS: AjudaPagina = {
+  titulo: "Cargos",
+  resumo: "Lista de cargos para escolher no cadastro de funcionário.",
+  imagens: [img("cargos", "Cargos cadastrados e quantos funcionários usam cada um.")],
   secoes: [
     {
       titulo: "Como usar",
       itens: [
-        "Busque por nome, CPF, telefone ou cargo.",
+        "“+ Novo Cargo” cadastra um nome (ex.: Porteiro, Recepcionista).",
+        "Editar renomeia o cargo para todos os funcionários que o usam.",
+        "Excluir só funciona se nenhum funcionário estiver com o cargo.",
+        "No cadastro do funcionário também dá para criar: digite o nome e clique em “+ Cadastrar”.",
+      ],
+    },
+    {
+      titulo: "Bom saber",
+      itens: ["O cargo é só informativo: não muda a escala."],
+    },
+  ],
+};
+
+const FUNCIONARIOS: AjudaPagina = {
+  titulo: "Funcionários",
+  resumo: "A equipe de cada posto e como cada pessoa entra na escala.",
+  imagens: [
+    img("funcionarios", "Lista de funcionários com busca e filtros de posto e status."),
+    img("funcionario-form", "Cadastro de funcionário: cargo e posto são escolhidos na lista (dá para digitar e buscar)."),
+  ],
+  secoes: [
+    {
+      titulo: "Como usar",
+      itens: [
+        "Busque por nome, CPF, telefone ou cargo; filtre por posto.",
         "A lista abre só com Ativos; troque o filtro para ver Inativos ou Todos.",
-        "“+ Novo Funcionário”: nome, CPF (11 dígitos) e carga horária semanal são obrigatórios.",
-        "Excluir só funciona se a pessoa não tiver alocações; para tirá-la das próximas escalas, edite e marque como Inativo.",
+        "“+ Novo Funcionário”: nome, CPF (11 números) e carga horária semanal são obrigatórios.",
+        "Cargo e posto: clique e digite parte do nome. O posto também é achado pelo nome da empresa.",
+        "Cargo que não existe: digite o nome e clique em “+ Cadastrar”.",
       ],
     },
     {
       titulo: "Campos da escala",
       itens: [
-        "Turno de casa: horário em que a geração escala a pessoa.",
-        "Coringa: cobre mais de um turno; marque quais.",
-        "Nunca trabalha em: dias da semana em que ela não é escalada.",
+        "Turno de casa: o horário em que a geração escala a pessoa.",
+        "É coringa: sem horário fixo; marque os turnos que ela pode cobrir.",
+        "Também pode cobrir: outros turnos que um titular aceita fazer (só usados se a geração permitir).",
+        "Nunca trabalha em: dias da semana em que a pessoa não é escalada.",
+        "Sem turno de casa e sem nenhum turno marcado, a pessoa fica fora da geração (aparece o aviso de cadastro incompleto).",
+      ],
+    },
+    {
+      titulo: "Saiu da empresa?",
+      itens: [
+        "Edite e marque como Inativo: some das próximas escalas e o histórico fica.",
+        "Excluir só funciona para quem nunca foi escalado nem teve ausência.",
       ],
     },
   ],
@@ -125,19 +200,21 @@ const FUNCIONARIOS: AjudaPagina = {
 const AUSENCIAS: AjudaPagina = {
   titulo: "Ausências",
   resumo: "Férias, atestados, faltas e outros afastamentos.",
+  imagens: [img("ausencias", "Ausências cadastradas no período.")],
   secoes: [
     {
       titulo: "Como usar",
       itens: [
         "Busque por funcionário ou motivo; De/Até filtra o período (abre no mês atual).",
-        "“+ Nova Ausência”: escolha a pessoa, o período e o motivo. Compensação é opcional.",
+        "“+ Nova Ausência”: escolha a pessoa (digite para buscar), o período e o motivo.",
+        "Compensação é opcional (ex.: reposta em outro dia).",
       ],
     },
     {
       titulo: "Efeito na escala",
       itens: [
-        "A ausência vale para as próximas gerações: a pessoa não é escalada nesses dias.",
-        "Uma escala já pronta não muda sozinha; ajuste os dias afetados na grade.",
+        "Lance a ausência ANTES de gerar: a geração não escala a pessoa nesses dias.",
+        "Escala já pronta não muda sozinha: abra a escala e use “Validar escala” para ver os dias em conflito, depois ajuste na grade.",
       ],
     },
   ],
@@ -146,37 +223,46 @@ const AUSENCIAS: AjudaPagina = {
 const REGRAS: AjudaPagina = {
   titulo: "Regras trabalhistas",
   resumo: "Padrões de rodízio e limites usados ao gerar e validar escalas.",
+  imagens: [img("regras", "Limites do sistema (em cima) e padrões de rodízio (embaixo).")],
   secoes: [
     {
-      titulo: "Padrão de rodízio",
+      titulo: "Limites do sistema",
       itens: [
-        "Define quantos dias a pessoa trabalha antes de folgar (ex.: 5x1, 6x1).",
-        "“+ Novo padrão” cadastra um; você escolhe qual usar em cada “Gerar escala”.",
+        "Carga semanal máxima, descanso entre jornadas e pausa dentro do turno.",
+        "Sem mexer, valem os padrões da CLT (aparece “(padrão)” ao lado do valor).",
+        "“+ Definir valor personalizado” troca o padrão; “Editar” muda um valor já definido.",
+        "O descanso semanal (no máximo 6 dias seguidos) é fixo por lei e não muda.",
+      ],
+    },
+    {
+      titulo: "Padrões de rodízio",
+      itens: [
+        "Quantos dias a pessoa trabalha antes de folgar (ex.: 5x1, 6x1).",
+        "“+ Novo padrão” cadastra um; “Marcar como padrão” define o usado quando ninguém escolhe outro.",
+        "Em cada “Gerar escala” dá para escolher outro padrão.",
         "Só pode ser excluído se nenhuma escala usa.",
       ],
     },
     {
-      titulo: "Limites do sistema",
-      itens: [
-        "“Nova Regra” ajusta a carga semanal máxima, o descanso entre jornadas e a pausa dentro do turno.",
-        "Sem cadastro, valem os limites da CLT. Só cadastre se quiser um valor diferente.",
-        "“Regras antigas” não têm efeito e podem ser excluídas.",
-      ],
+      titulo: "Regras antigas",
+      itens: ["Não têm efeito na geração e podem ser excluídas."],
     },
   ],
 };
 
 const ESCALAS: AjudaPagina = {
   titulo: "Escalas",
-  resumo: "Escalas geradas por posto e período.",
+  resumo: "Escalas geradas, por posto e período.",
+  imagens: [img("escalas", "Escalas geradas: “Abrir →” mostra a grade e “PDF ↓” baixa para imprimir.")],
   secoes: [
     {
       titulo: "Como usar",
       itens: [
-        "Filtre por posto e pelo período (De/Até).",
-        "“+ Gerar escala” monta uma nova escala automaticamente.",
-        "“Abrir →” mostra a grade para conferir e ajustar; “PDF ↓” baixa para imprimir.",
-        "Excluir apaga também todas as alocações da escala (pede confirmação).",
+        "Filtre por posto (digite para buscar) e pelo período (De/Até).",
+        "“+ Gerar escala” monta uma escala nova automaticamente.",
+        "“Abrir →” mostra a grade para conferir e ajustar.",
+        "“PDF ↓” baixa a escala pronta para imprimir.",
+        "Excluir apaga a escala e todos os dias dela (pede confirmação).",
       ],
     },
   ],
@@ -185,14 +271,24 @@ const ESCALAS: AjudaPagina = {
 const GERAR: AjudaPagina = {
   titulo: "Gerar escala",
   resumo: "Monta a escala de um posto num período, respeitando as regras trabalhistas.",
+  imagens: [img("gerar-escala", "Formulário de geração: posto, período, padrão de rodízio e equipe.")],
   secoes: [
     {
       titulo: "Passo a passo",
       itens: [
         "Escolha o posto e as datas de início e fim.",
-        "O padrão de rodízio é opcional. Confira a equipe do posto antes de gerar.",
-        "“Simular” mostra o resultado sem salvar; “Gerar” cria a escala de verdade.",
-        "Depois, a escala abre na grade para você ajustar o que precisar.",
+        "Padrão de rodízio é opcional: sem escolher, vale o marcado como padrão em Regras.",
+        "Em “Equipe deste posto”, desmarque quem não deve entrar nesta escala.",
+        "“Deixar um titular cobrir turno que não é o dele”: desligado, cada um fica no seu horário o mês todo.",
+        "“Simular” mostra o resultado sem salvar; “Gerar e salvar” cria a escala e abre a grade.",
+      ],
+    },
+    {
+      titulo: "Antes de gerar",
+      itens: [
+        "Lance as ausências do período (férias, atestados), senão a pessoa é escalada nesses dias.",
+        "Funcionário com cadastro incompleto não aparece na equipe: o aviso amarelo diz quem é.",
+        "Se a grade pede mais coberturas do que a equipe dá conta, aparece um aviso: algumas vagas ficarão vazias.",
       ],
     },
     {
@@ -209,21 +305,30 @@ const GERAR: AjudaPagina = {
 const ESCALA_DETALHE: AjudaPagina = {
   titulo: "Grade da escala",
   resumo: "Uma linha por dia, uma coluna por funcionário.",
+  imagens: [img("escala-grade", "A grade: uma linha por dia, uma coluna por funcionário. Clique numa célula para trocar.")],
   secoes: [
     {
-      titulo: "Ajustando a escala",
+      titulo: "Lendo a grade",
       itens: [
-        "Clique numa célula para escolher o turno do dia ou folga.",
-        "Legenda: F = folga, · = sem alocação, cor = turno.",
-        "“Salvo, mas: …” em amarelo: a mudança foi feita, porém quebra alguma regra.",
-        "Para cobrir um furo com alguém de outro posto, use “Cobrir com funcionário de outro posto…”; o “× remover” tira a coluna se ela estiver vazia.",
+        "Ponto (·): a pessoa trabalha no turno de casa dela.",
+        "F: folga. Passe o mouse para ver o motivo (ex.: ausência).",
+        "Horário colorido: turno diferente do de casa (troca, substituição ou coringa).",
+        "No topo de cada coluna: turno de casa e total de horas no período.",
       ],
     },
     {
-      titulo: "Conferindo",
+      titulo: "Ajustando",
       itens: [
-        "“Validar escala” confere carga semanal, descanso entre jornadas, dias seguidos, domingo de folga e cobertura das vagas.",
-        "“PDF” baixa a escala para imprimir.",
+        "Clique numa célula e escolha o turno do dia ou Folga.",
+        "“Salvo, mas: …” em amarelo: a mudança foi salva, porém quebra alguma regra.",
+        "Para cobrir com alguém de outro posto: escolha a pessoa em “Cobrir com funcionário de outro posto…” e clique em Adicionar. O “× remover” tira a coluna se ela estiver vazia.",
+      ],
+    },
+    {
+      titulo: "Conferindo e imprimindo",
+      itens: [
+        "“Validar escala” confere carga semanal, descanso entre jornadas, dias seguidos, domingo de folga e vagas sem cobertura.",
+        "“Gerar PDF ↓” baixa a escala para imprimir (em preto e branco, para gastar pouca tinta).",
       ],
     },
   ],
@@ -231,15 +336,20 @@ const ESCALA_DETALHE: AjudaPagina = {
 
 const ALOCACOES: AjudaPagina = {
   titulo: "Alocações",
-  resumo: "Lista de todos os turnos alocados, de todas as escalas.",
+  resumo: "Consulta de todos os dias trabalhados, de todas as escalas.",
+  imagens: [img("alocacoes", "Todas as alocações, com filtros por funcionário, turno e escala.")],
   secoes: [
     {
       titulo: "Como usar",
       itens: [
-        "Filtre por funcionário, turno, escala, substituído (Sim/Não) e período.",
+        "Filtre por funcionário, turno, escala (digite para buscar), substituído (Sim/Não) e período.",
         "A lista mostra 25 por página.",
-        "Para alterar um dia, abra a escala (Escalas → Abrir) e edite na grade.",
+        "Serve para responder “quem trabalhou tal dia?” ou “onde fulano esteve no mês?”.",
       ],
+    },
+    {
+      titulo: "Para alterar",
+      itens: ["Esta tela é só consulta: abra a escala (Escalas → Abrir →) e edite na grade."],
     },
   ],
 };
@@ -251,6 +361,7 @@ const POR_SECAO: Record<string, AjudaPagina> = {
   postos: POSTOS,
   turnos: TURNOS,
   funcionarios: FUNCIONARIOS,
+  cargos: CARGOS,
   ausencias: AUSENCIAS,
   regras: REGRAS,
   alocacoes: ALOCACOES,

@@ -8,6 +8,7 @@ import { Prisma } from '@prisma/client';
 import { FuncionarioRepository } from '../repositories/funcionario.repository';
 import { TurnoRepository } from '../repositories/turno.repository';
 import { PostoTrabalhoRepository } from '../repositories/posto-trabalho.repository';
+import { CargoRepository } from '../repositories/cargo.repository';
 import { CreateFuncionarioDto } from '../../infra/http/dtos/funcionario/create-funcionario.dto';
 import { UpdateFuncionarioDto } from '../../infra/http/dtos/funcionario/update-funcionario.dto';
 import { FindFuncionariosQueryDto } from '../../infra/http/dtos/funcionario/find-funcionarios-query.dto';
@@ -21,6 +22,7 @@ export class FuncionarioService {
     private readonly repository: FuncionarioRepository,
     private readonly turnoRepository: TurnoRepository,
     private readonly postoTrabalhoRepository: PostoTrabalhoRepository,
+    private readonly cargoRepository: CargoRepository,
   ) {}
 
   async create(dto: CreateFuncionarioDto) {
@@ -34,6 +36,7 @@ export class FuncionarioService {
 
     await this.validarTurno(dto.turnoPadraoId);
     await this.validarPosto(dto.postoId);
+    await this.validarCargo(dto.cargoId);
     const habilitacoes = await this.validarHabilitacoes(dto.turnosHabilitadosIds);
 
     const { turnosHabilitadosIds, ...dados } = dto;
@@ -73,7 +76,7 @@ export class FuncionarioService {
       // Uma caixa de busca, quatro colunas: basta UMA bater (OR).
       const condicoes: Prisma.FuncionarioWhereInput[] = [
         { nome: { contains: busca, mode: 'insensitive' } },
-        { cargo: { contains: busca, mode: 'insensitive' } },
+        { cargo: { nome: { contains: busca, mode: 'insensitive' } } },
         { telefone: { contains: busca, mode: 'insensitive' } },
       ];
 
@@ -122,6 +125,7 @@ export class FuncionarioService {
 
     await this.validarTurno(dto.turnoPadraoId);
     await this.validarPosto(dto.postoId);
+    await this.validarCargo(dto.cargoId);
 
     const { turnosHabilitadosIds, ...dados } = dto;
 
@@ -168,6 +172,14 @@ export class FuncionarioService {
       throw new NotFoundException(
         `Posto de trabalho com id ${postoId} não encontrado.`,
       );
+    }
+  }
+
+  private async validarCargo(cargoId?: number | null) {
+    if (!cargoId) return;
+    const cargo = await this.cargoRepository.findById(cargoId);
+    if (!cargo) {
+      throw new NotFoundException(`Cargo com id ${cargoId} não encontrado.`);
     }
   }
 

@@ -170,7 +170,7 @@ async function main() {
           nome: nomes[nomeIndex],
           cpf: cpfValido(String(cpfBase).padStart(9, '0')),
           telefone: `(42) 99911-${String(telefoneSeq).padStart(4, '0')}`,
-          cargo: cargos[nomeIndex % 2],
+          cargoId: (await prisma.cargo.upsert({ where: { nome: cargos[nomeIndex % 2] }, update: {}, create: { nome: cargos[nomeIndex % 2] } })).id,
           cargaHorariaSemanal: 44,
           status: true,
           // Sem turno de casa + com habilitação = coringa. Não existe
