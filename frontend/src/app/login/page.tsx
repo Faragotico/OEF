@@ -1,9 +1,10 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Image from "next/image";
-import { apiPost } from "@/lib/api";
+import { apiGet, apiPost } from "@/lib/api";
+import { CampoSenha } from "@/components/campo-senha";
 
 const inputClass =
   "w-full rounded-md border border-border bg-card px-3 py-2 text-sm text-text";
@@ -26,9 +27,19 @@ export default function LoginPage() {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [senha, setSenha] = useState("");
-  const [senhaVisivel, setSenhaVisivel] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
   const [enviando, setEnviando] = useState(false);
+
+  // Sistema recém-instalado, sem nenhum gestor: não há com quem entrar.
+  // Manda para a tela que cria o primeiro. Se a pergunta falhar (API fora
+  // do ar), fica no login — o erro aparece ao tentar entrar.
+  useEffect(() => {
+    apiGet<{ precisaPrimeiroAcesso: boolean }>("/auth/situacao")
+      .then((s) => {
+        if (s.precisaPrimeiroAcesso) router.replace("/primeiro-acesso");
+      })
+      .catch(() => {});
+  }, [router]);
 
   async function entrar(evento: React.FormEvent) {
     evento.preventDefault();
@@ -91,42 +102,12 @@ export default function LoginPage() {
 
           <label className="flex flex-col gap-1 text-sm text-text">
             Senha
-            <div className="relative">
-              <input
-                type={senhaVisivel ? "text" : "password"}
-                autoComplete="current-password"
-                required
-                value={senha}
-                onChange={(e) => setSenha(e.target.value)}
-                className={`${inputClass} pr-20`}
-              />
-              {/* Mostrar a senha evita o "errei uma letra e não sei qual"
-                  — comum em quem digita devagar ou no notebook. Fica
-                  DENTRO do campo para não parecer um segundo campo. */}
-              <button
-                type="button"
-                onClick={() => setSenhaVisivel((v) => !v)}
-                aria-pressed={senhaVisivel}
-                aria-label={senhaVisivel ? "Esconder senha" : "Mostrar senha"}
-                className="absolute inset-y-0 right-0 flex items-center gap-1 rounded-r-md px-3 text-xs font-medium text-text-secondary transition-colors hover:text-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-              >
-                <svg
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  className="h-4 w-4"
-                  aria-hidden="true"
-                >
-                  <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z" />
-                  <circle cx="12" cy="12" r="3" />
-                  {senhaVisivel && <path d="M3 3l18 18" />}
-                </svg>
-                {senhaVisivel ? "Ocultar" : "Mostrar"}
-              </button>
-            </div>
+            <CampoSenha
+              value={senha}
+              onChange={setSenha}
+              autoComplete="current-password"
+              inputClassName={inputClass}
+            />
           </label>
 
           {/* role="alert" faz o leitor de tela anunciar o erro assim que

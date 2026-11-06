@@ -1,2 +1,5 @@
 /node_modules
 /dist
+# Saídas do empacotamento (pnpm instalador): geradas, não vão para o Git.
+/pacote
+/dist-instalador

@@ -2,6 +2,7 @@ import { Body, Controller, Get, HttpCode, Post, Res } from '@nestjs/common';
 import type { CookieOptions, Response } from 'express';
 import { AuthService } from '../../../domain/services/auth.service';
 import { LoginDto } from '../dtos/auth/login.dto';
+import { PrimeiroAcessoDto } from '../dtos/auth/primeiro-acesso.dto';
 import { Public } from '../decorators/public.decorator';
 import { UsuarioAtual } from '../decorators/usuario-atual.decorator';
 import {
@@ -9,7 +10,8 @@ import {
   type ConteudoToken,
 } from '../../../helpers/seguranca.helpers';
 
-// POST /auth/login, POST /auth/logout, GET /auth/me.
+// POST /auth/login, POST /auth/logout, GET /auth/me, e o primeiro acesso
+// (GET /auth/situacao, POST /auth/primeiro-acesso).
 //
 // Cookie httpOnly, não token na mão do frontend: as telas são Server
 // Components do Next (sem acesso a localStorage), e o cookie resolve
@@ -50,6 +52,25 @@ export class AuthController {
 
     // O token também vai no corpo: é o que o servidor do Next guarda
     // para repassar como `Authorization: Bearer` nas chamadas dele.
+    return { token, usuario };
+  }
+
+  // Público: a tela de login pergunta antes de existir qualquer sessão.
+  @Public()
+  @Get('situacao')
+  situacao() {
+    return this.auth.situacao();
+  }
+
+  // Público, mas só funciona com o banco sem nenhum usuário (ver AuthService).
+  @Public()
+  @Post('primeiro-acesso')
+  async primeiroAcesso(
+    @Body() dto: PrimeiroAcessoDto,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const { token, duracaoSegundos, usuario } = await this.auth.primeiroAcesso(dto);
+    res.cookie(NOME_COOKIE_SESSAO, token, this.opcoesCookie(duracaoSegundos));
     return { token, usuario };
   }
 

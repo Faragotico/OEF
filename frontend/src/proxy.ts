@@ -8,7 +8,10 @@ const NOME_COOKIE_SESSAO = "oef_sessao";
 
 export function proxy(req: NextRequest) {
   const temSessao = Boolean(req.cookies.get(NOME_COOKIE_SESSAO)?.value);
-  const indoPraLogin = req.nextUrl.pathname === "/login";
+  // O primeiro acesso é uma tela de "fora", como o login: só existe
+  // justamente quando ninguém consegue ter sessão ainda.
+  const indoPraLogin =
+    req.nextUrl.pathname === "/login" || req.nextUrl.pathname === "/primeiro-acesso";
 
   if (!temSessao && !indoPraLogin) {
     const destino = new URL("/login", req.url);

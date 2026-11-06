@@ -1,11 +1,24 @@
-import { Injectable, UnauthorizedException, Logger } from '@nestjs/common';
+import {
+  ConflictException,
+  Injectable,
+  UnauthorizedException,
+  Logger,
+} from '@nestjs/common';
 import { UsuarioRepository } from '../repositories/usuario.repository';
 import { LoginDto } from '../../infra/http/dtos/auth/login.dto';
+import { PrimeiroAcessoDto } from '../../infra/http/dtos/auth/primeiro-acesso.dto';
 import {
   conferirSenha,
+  gerarHashSenha,
   gerarToken,
   type ConteudoToken,
 } from '../../helpers/seguranca.helpers';
+
+type SessaoCriada = {
+  token: string;
+  duracaoSegundos: number;
+  usuario: { id: number; nome: string; email: string; papel: string };
+};
 
 // Duas decisões: (1) JWT_SECRET não tem valor padrão — sem ela o
 // serviço recusa subir, porque um segredo padrão em código é pior que
@@ -35,11 +48,39 @@ export class AuthService {
     return segredo;
   }
 
-  async login(dto: LoginDto): Promise<{
-    token: string;
-    duracaoSegundos: number;
-    usuario: { id: number; nome: string; email: string; papel: string };
-  }> {
+  /**
+   * O sistema ainda não tem nenhum usuário? É o que a tela de login
+   * pergunta para saber se manda a pessoa para o primeiro acesso.
+   * Público, e só devolve um sim/não — nada sobre quem está cadastrado.
+   */
+  async situacao(): Promise<{ precisaPrimeiroAcesso: boolean }> {
+    return { precisaPrimeiroAcesso: (await this.usuarios.count()) === 0 };
+  }
+
+  /**
+   * Cria o primeiro gestor e já entra com ele. Só funciona com a tabela
+   * de usuários VAZIA: depois do primeiro, esta rota passa a recusar —
+   * senão qualquer um criaria a própria conta. Antes, o primeiro usuário
+   * só podia ser criado por script (seed-usuario.ts), o que no app
+   * instalado, sem Node na máquina, não tinha como fazer.
+   */
+  async primeiroAcesso(dto: PrimeiroAcessoDto): Promise<SessaoCriada> {
+    const criado = await this.usuarios.criarSeNaoHouverNenhum({
+      nome: dto.nome.trim(),
+      email: dto.email.trim().toLowerCase(),
+      senhaHash: gerarHashSenha(dto.senha),
+      papel: 'gestor',
+    });
+    if (!criado) {
+      throw new ConflictException(
+        'O sistema já tem um gestor cadastrado. Entre com e-mail e senha.',
+      );
+    }
+    this.logger.log(`Primeiro acesso: gestor #${criado.id} criado.`);
+    return this.sessaoPara(criado);
+  }
+
+  async login(dto: LoginDto): Promise<SessaoCriada> {
     const usuario = await this.usuarios.findByEmail(dto.email);
 
     const credenciaisInvalidas = new UnauthorizedException(
@@ -55,6 +96,15 @@ export class AuthService {
       throw credenciaisInvalidas;
     }
 
+    return this.sessaoPara(usuario);
+  }
+
+  private sessaoPara(usuario: {
+    id: number;
+    nome: string;
+    email: string;
+    papel: string;
+  }): SessaoCriada {
     return {
       token: gerarToken(
         { sub: usuario.id, email: usuario.email, papel: usuario.papel },

@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { Usuario } from '@prisma/client';
+import { Prisma, Usuario } from '@prisma/client';
 import { PrismaService } from '../../infra/database/prisma.service';
 
 // O repository é o único lugar do sistema que conhece o Prisma.
@@ -19,5 +19,24 @@ export class UsuarioRepository {
 
   findById(id: number): Promise<Usuario | null> {
     return this.prisma.usuario.findUnique({ where: { id } });
+  }
+
+  count(): Promise<number> {
+    return this.prisma.usuario.count();
+  }
+
+  /**
+   * Cria o usuário SÓ se a tabela estiver vazia; devolve null se já havia
+   * alguém. Conferir e criar na mesma transação serializável: duas telas
+   * de primeiro acesso enviadas juntas não criam dois "primeiros".
+   */
+  criarSeNaoHouverNenhum(dados: Prisma.UsuarioCreateInput): Promise<Usuario | null> {
+    return this.prisma.$transaction(
+      async (tx) => {
+        if ((await tx.usuario.count()) > 0) return null;
+        return tx.usuario.create({ data: dados });
+      },
+      { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+    );
   }
 }

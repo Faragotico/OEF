@@ -177,6 +177,19 @@ async function main() {
   // Sem posto: cobre os dois postos.
   const gustavo = await novo({ nome: 'Gustavo Volante (2 postos)', cpf: CPF.gustavo, postoId: null, turnoPadraoId: null, habilitados: [manha.id, tarde.id, comercial.id], cargoId: volante });
 
+  // Banco novo (ex.: o embutido do app desktop) não tem regra de rodízio, e
+  // a geração precisa de uma. Cria a 5x1 só se não houver nenhuma.
+  if (!(await prisma.regra.findFirst({ where: { tipo: 'escala' } }))) {
+    await prisma.regra.create({
+      data: {
+        descricao: 'Escala 5x1: cinco dias trabalhados para um de folga',
+        tipo: 'escala',
+        valor: '5x1',
+        padrao: true,
+      },
+    });
+  }
+
   await prisma.ausencia.create({
     data: { funcionarioId: bruno.id, dataInic: dia('2026-12-15'), dataFim: dia('2026-12-19'), motivo: 'Férias' },
   });

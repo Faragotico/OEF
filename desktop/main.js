@@ -2,10 +2,13 @@
 
 // Processo principal do OEF desktop (Electron).
 //
-// O Electron sobe dois processos filhos — o backend (Nest, dist/src/main.js)
-// e o servidor standalone do frontend — e abre uma janela apontando para o
-// frontend. O banco (Postgres) AINDA roda solto, como no desenvolvimento:
-// o passo 3 o traz para dentro do app.
+// Ao abrir, sobe tudo o que o sistema precisa, nesta ordem:
+//   1. o banco Postgres embutido (banco.js), com os dados em %APPDATA%\OEF;
+//   2. as migrações do banco (prisma migrate deploy) — instalar uma versão
+//      nova por cima atualiza o banco sozinho na próxima abertura;
+//   3. a API (Nest) e a interface (Next standalone), como processos filhos;
+//   4. a janela, apontando para a interface.
+// Ao fechar, desliga tudo na ordem inversa.
 
 const { app, BrowserWindow, Menu, dialog, shell } = require("electron");
 const { spawn } = require("node:child_process");
@@ -13,7 +16,13 @@ const crypto = require("node:crypto");
 const fs = require("node:fs");
 const http = require("node:http");
 const path = require("node:path");
-const { parseEnv } = require("node:util");
+const { criarBanco } = require("./banco");
+
+// Nome do app ANTES de qualquer app.getPath("userData"): é ele que define a
+// pasta de dados (%APPDATA%\OEF). Sem isto, rodando pelo `electron .` a
+// pasta seria "oef-desktop", e no instalador viraria "OEF" — os dados
+// pareceriam ter sumido na troca.
+app.setName("OEF");
 
 const PORTA_FRONT = 3000;
 // Fixa: o endereço da API é gravado no build do frontend (NEXT_PUBLIC_API_URL).
@@ -32,7 +41,37 @@ const MODO_DEV = process.argv.includes("--dev");
 
 const filhos = [];
 let janela = null;
+let aguarde = null;
+let banco = null;
 let encerrando = false;
+
+// ---------- caminhos ----------
+
+// Em desenvolvimento tudo vem das pastas do repositório; no instalador,
+// de dentro da pasta resources do app (ver "extraResources" no package.json).
+function caminhos() {
+  if (app.isPackaged) {
+    const r = process.resourcesPath;
+    return {
+      back: path.join(r, "backend", "dist", "src", "main.js"),
+      front: path.join(r, "frontend", "server.js"),
+      prismaCli: path.join(r, "backend", "node_modules", "prisma", "build", "index.js"),
+      schema: path.join(r, "backend", "prisma", "schema.prisma"),
+      icone: path.join(r, "icone.png"),
+    };
+  }
+  const raiz = path.resolve(__dirname, "..");
+  return {
+    // dist/src (e não dist/) porque o tsconfig também compila prisma/ e scripts/.
+    back: path.join(raiz, "backend", "dist", "src", "main.js"),
+    front: path.join(raiz, "frontend", ".next", "standalone", "server.js"),
+    prismaCli: path.join(raiz, "backend", "node_modules", "prisma", "build", "index.js"),
+    schema: path.join(raiz, "backend", "prisma", "schema.prisma"),
+    icone: path.join(raiz, "frontend", "public", "android-chrome-512x512.png"),
+  };
+}
+
+const pastaLogs = () => path.join(app.getPath("userData"), "logs");
 
 // ---------- utilidades ----------
 
@@ -60,8 +99,34 @@ async function esperarResponder(url, tentativas) {
   return false;
 }
 
-function falhar(mensagem) {
-  dialog.showErrorBox("OEF Sistema", mensagem);
+function ultimasLinhas(arquivo, quantidade = 12) {
+  try {
+    return fs.readFileSync(arquivo, "utf8").trimEnd().split(/\r?\n/).slice(-quantidade).join("\n");
+  } catch {
+    return "";
+  }
+}
+
+// Erro que sabe qual arquivo de log explica o que aconteceu.
+class ErroComLog extends Error {
+  constructor(mensagem, arquivoLog) {
+    super(mensagem);
+    this.arquivoLog = arquivoLog;
+  }
+}
+
+// Mostra o erro e fecha. Com o log junto: no PC do gestor não há console,
+// e "código 1" sozinho não diz nada a ninguém.
+function falhar(mensagem, arquivoLog) {
+  if (encerrando) return;
+  let texto = mensagem;
+  if (arquivoLog) {
+    const final = ultimasLinhas(arquivoLog);
+    texto += `\n\nRegistro: ${arquivoLog}`;
+    if (final) texto += `\n\nÚltimas linhas:\n${final}`;
+  }
+  if (aguarde) aguarde.destroy();
+  dialog.showErrorBox("OEF Sistema", texto);
   app.quit();
 }
 
@@ -70,40 +135,86 @@ function falhar(mensagem) {
 // Sobe um script Node usando o próprio Electron: process.execPath é o
 // executável do Electron e, com ELECTRON_RUN_AS_NODE, ele se comporta como
 // o Node comum. Assim o app não depende de ter Node instalado na máquina.
-function iniciarFilho(nome, script, env) {
-  const filho = spawn(process.execPath, [script], {
+//
+// Passa por filho.js, que abre um canal IPC: se o app cair, o filho morre
+// junto em vez de ficar segurando a porta.
+function iniciarFilho(nome, arquivoLog, script, env) {
+  const saida = fs.createWriteStream(path.join(pastaLogs(), arquivoLog));
+  const filho = spawn(process.execPath, [path.join(__dirname, "filho.js"), script], {
     cwd: path.dirname(script),
     env: { ...process.env, ELECTRON_RUN_AS_NODE: "1", ...env },
-    stdio: "inherit",
+    stdio: ["ignore", "pipe", "pipe", "ipc"],
     windowsHide: true,
   });
+  filho.stdout.pipe(saida);
+  filho.stderr.pipe(saida);
+  if (!app.isPackaged) {
+    filho.stdout.pipe(process.stdout);
+    filho.stderr.pipe(process.stderr);
+  }
   filhos.push(filho);
 
+  filho.on("error", (erro) => falhar(`Não consegui iniciar o ${nome}: ${erro.message}`));
   filho.on("exit", (codigo) => {
     const i = filhos.indexOf(filho);
     if (i >= 0) filhos.splice(i, 1);
     if (!encerrando) {
-      falhar(`O ${nome} parou sozinho (código ${codigo}).`);
+      falhar(`O ${nome} parou sozinho (código ${codigo}).`, saida.path);
     }
   });
 }
 
 function encerrarFilhos() {
-  encerrando = true;
   for (const filho of filhos.splice(0)) filho.kill();
+}
+
+// ---------- banco ----------
+
+// Aplica as migrações pendentes. Num banco novo, cria as tabelas; numa
+// versão nova do app instalada por cima, traz o banco para o schema novo.
+// Roda toda abertura: quando não há nada pendente leva um ou dois segundos.
+function migrar(c, databaseUrl) {
+  const arquivoLog = path.join(pastaLogs(), "migracao.log");
+  const saida = fs.createWriteStream(arquivoLog);
+  return new Promise((resolve, reject) => {
+    const p = spawn(
+      process.execPath,
+      [c.prismaCli, "migrate", "deploy", "--schema", c.schema],
+      {
+        // Fora da pasta do backend: em desenvolvimento, o Prisma leria o
+        // backend/.env de lá (e o Postgres de desenvolvimento).
+        cwd: app.getPath("userData"),
+        env: {
+          ...process.env,
+          ELECTRON_RUN_AS_NODE: "1",
+          DATABASE_URL: databaseUrl,
+          // Sem internet no PC do gestor: nada de checar versão nova.
+          CHECKPOINT_DISABLE: "1",
+          PRISMA_HIDE_UPDATE_MESSAGE: "1",
+        },
+        stdio: ["ignore", "pipe", "pipe"],
+        windowsHide: true,
+      },
+    );
+    p.stdout.pipe(saida);
+    p.stderr.pipe(saida);
+    const timer = setTimeout(() => p.kill(), 180_000);
+    p.on("error", (erro) => {
+      clearTimeout(timer);
+      reject(erro);
+    });
+    p.on("exit", (codigo) => {
+      clearTimeout(timer);
+      if (codigo === 0) resolve();
+      else reject(new ErroComLog("Não consegui atualizar o banco de dados (migrações).", arquivoLog));
+    });
+  });
 }
 
 // ---------- backend ----------
 
-// Caminhos apontam para a pasta do repositório; quando virar instalador
-// (passo 5) passam a usar process.resourcesPath.
-function caminhoDoBackend() {
-  // dist/src (e não dist/) porque o tsconfig também compila prisma/ e scripts/.
-  return path.resolve(__dirname, "..", "backend", "dist", "src", "main.js");
-}
-
 // O backend recusa subir sem JWT_SECRET. Cada instalação gera o seu na
-// primeira execução e guarda em userData (%APPDATA%/OEF): assim não há
+// primeira execução e guarda em userData (%APPDATA%\OEF): assim não há
 // segredo fixo dentro do instalador, e reinstalar não derruba as sessões.
 function segredoJwt() {
   const arquivo = path.join(app.getPath("userData"), "jwt-secret.txt");
@@ -119,22 +230,8 @@ function segredoJwt() {
   return novo;
 }
 
-// TEMPORÁRIO (até o passo 3, Postgres embutido): o banco ainda é o
-// Postgres de desenvolvimento, e o endereço vem do backend/.env.
-function urlDoBanco() {
-  if (process.env.DATABASE_URL) return process.env.DATABASE_URL;
-  try {
-    const env = parseEnv(
-      fs.readFileSync(path.resolve(__dirname, "..", "backend", ".env"), "utf8"),
-    );
-    return env.DATABASE_URL;
-  } catch {
-    return undefined;
-  }
-}
-
 function iniciarBack(script, databaseUrl) {
-  iniciarFilho("servidor da API", script, {
+  iniciarFilho("servidor da API", "api.log", script, {
     NODE_ENV: "production",
     PORT: String(PORTA_API),
     HOST: "127.0.0.1",
@@ -146,22 +243,39 @@ function iniciarBack(script, databaseUrl) {
   });
 }
 
-// ---------- frontend ----------
-
-// Onde está o server.js gerado por `next build`.
-function caminhoDoServidorFront() {
-  return path.resolve(__dirname, "..", "frontend", ".next", "standalone", "server.js");
-}
-
 function iniciarFront(servidor) {
-  iniciarFilho("servidor da interface", servidor, {
+  iniciarFilho("servidor da interface", "interface.log", servidor, {
     NODE_ENV: "production",
     PORT: String(PORTA_FRONT),
     HOSTNAME: "127.0.0.1",
   });
 }
 
-// ---------- janela ----------
+// ---------- janelas ----------
+
+// Janelinha de "abrindo": na primeira vez o banco é criado do zero e leva
+// alguns segundos. Sem ela, o gestor clica no ícone e nada aparece — e
+// clica de novo.
+function mostrarAguarde() {
+  aguarde = new BrowserWindow({
+    width: 380,
+    height: 150,
+    frame: false,
+    resizable: false,
+    alwaysOnTop: true,
+    show: false,
+    backgroundColor: "#0f766e",
+    webPreferences: { sandbox: true, contextIsolation: true, nodeIntegration: false },
+  });
+  const html = `<!doctype html><meta charset="utf-8"><body style="margin:0;height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;font-family:Segoe UI,sans-serif;color:#fff;background:#0f766e">
+    <div style="font-size:20px;font-weight:700;letter-spacing:.05em">OEF SISTEMA</div>
+    <div style="margin-top:8px;font-size:13px;opacity:.85">Abrindo… (na primeira vez pode levar até 1 ou 2 minutos)</div></body>`;
+  aguarde.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(html)}`);
+  aguarde.once("ready-to-show", () => aguarde?.show());
+  aguarde.on("closed", () => {
+    aguarde = null;
+  });
+}
 
 function ehHttp(url) {
   try {
@@ -172,14 +286,14 @@ function ehHttp(url) {
   }
 }
 
-function criarJanela() {
+function criarJanela(c) {
   janela = new BrowserWindow({
     width: 1366,
     height: 860,
     minWidth: 1024,
     minHeight: 640,
     title: "OEF Sistema",
-    icon: path.join(__dirname, "..", "frontend", "public", "android-chrome-512x512.png"),
+    icon: c.icone,
     autoHideMenuBar: true,
     show: false,
     webPreferences: {
@@ -191,7 +305,10 @@ function criarJanela() {
     },
   });
 
-  janela.once("ready-to-show", () => janela.show());
+  janela.once("ready-to-show", () => {
+    if (aguarde) aguarde.destroy();
+    janela.show();
+  });
   janela.on("closed", () => {
     janela = null;
   });
@@ -227,63 +344,95 @@ function criarJanela() {
 
   if (MODO_DEV) janela.webContents.openDevTools({ mode: "detach" });
 
-  janela.loadURL(ORIGEM_FRONT);
+  // Toda abertura começa sem sessão. O cookie de login dura 8 horas e o
+  // Electron o guarda em disco: sem isto, o gestor que fechou o app sem
+  // clicar em "Sair" deixaria o próximo entrar já logado como ele. Na
+  // abertura (e não ao fechar) para valer também depois de uma queda.
+  // Só os cookies: preferências como o tema (localStorage) ficam.
+  janela.webContents.session
+    .clearStorageData({ storages: ["cookies"] })
+    .catch(() => {})
+    .finally(() => janela?.loadURL(ORIGEM_FRONT));
 }
 
 // ---------- ciclo de vida ----------
 
 async function iniciar() {
   Menu.setApplicationMenu(null);
+  fs.mkdirSync(pastaLogs(), { recursive: true });
 
-  // As portas são fixas; se já há algo nelas, provavelmente é o
-  // `pnpm dev`/`pnpm start:dev` do desenvolvimento esquecido aberto.
-  if (await responde(TESTE_API)) {
-    return falhar(
-      `A porta ${PORTA_API} já está em uso.\n` +
-        "Se o backend está rodando com `pnpm start:dev`, pare ele e abra o OEF de novo.",
-    );
-  }
-  if (await responde(TESTE_FRONT)) {
-    return falhar(
-      `A porta ${PORTA_FRONT} já está em uso.\n` +
-        "Se o frontend está rodando com `pnpm dev`, pare ele e abra o OEF de novo.",
-    );
-  }
-
-  const back = caminhoDoBackend();
-  if (!fs.existsSync(back)) {
-    return falhar(
-      "Não achei o backend compilado (backend/dist/src/main.js).\n" +
-        "Rode `pnpm back:build` na pasta desktop.",
-    );
-  }
-  const front = caminhoDoServidorFront();
-  if (!fs.existsSync(front)) {
-    return falhar(
-      "Não achei o frontend compilado (frontend/.next/standalone/server.js).\n" +
-        "Rode `pnpm front:build` na pasta desktop.",
-    );
-  }
-  const databaseUrl = urlDoBanco();
-  if (!databaseUrl) {
-    return falhar(
-      "Não achei DATABASE_URL (nem no ambiente, nem em backend/.env).\n" +
-        "Neste passo o Postgres ainda roda separado: configure o backend/.env.",
-    );
+  // As portas são fixas; se já há algo nelas, em desenvolvimento costuma
+  // ser o `pnpm dev`/`pnpm start:dev` esquecido aberto.
+  for (const [porta, url] of [
+    [PORTA_API, TESTE_API],
+    [PORTA_FRONT, TESTE_FRONT],
+  ]) {
+    if (await responde(url)) {
+      return falhar(
+        `A porta ${porta} já está em uso por outro programa, e o OEF precisa dela.\n` +
+          "Feche esse programa (em desenvolvimento: `pnpm dev` / `pnpm start:dev`) e abra o OEF de novo.",
+      );
+    }
   }
 
-  // Os dois sobem juntos; a janela só abre quando ambos respondem.
-  iniciarBack(back, databaseUrl);
-  iniciarFront(front);
+  const c = caminhos();
+  if (!fs.existsSync(c.back)) {
+    return falhar(`Não achei o backend compilado (${c.back}).\nRode \`pnpm back:build\` na pasta desktop.`);
+  }
+  if (!fs.existsSync(c.front)) {
+    return falhar(`Não achei a interface compilada (${c.front}).\nRode \`pnpm front:build\` na pasta desktop.`);
+  }
 
+  mostrarAguarde();
+
+  banco = criarBanco(app, pastaLogs());
+  let databaseUrl;
+  try {
+    databaseUrl = await banco.iniciar();
+  } catch (erro) {
+    return falhar(`Não consegui abrir o banco de dados.\n${erro.message}`, banco.logServidor);
+  }
+
+  try {
+    await migrar(c, databaseUrl);
+  } catch (erro) {
+    return falhar(erro.message, erro.arquivoLog);
+  }
+
+  // A API e a interface sobem juntas; a janela só abre quando as duas respondem.
+  iniciarBack(c.back, databaseUrl);
+  iniciarFront(c.front);
+
+  // Até 2 minutos (240 x 0,5 s). Normalmente sobem em poucos segundos, mas
+  // na PRIMEIRA abertura depois de instalar o antivírus do Windows examina
+  // cada um dos ~25 mil arquivos novos ao serem lidos, e a API chegou a
+  // levar 25-30 s nos testes. Com 30 s de limite, o app desistia à toa.
   const [apiOk, frontOk] = await Promise.all([
-    esperarResponder(TESTE_API, 60),
-    esperarResponder(TESTE_FRONT, 60),
+    esperarResponder(TESTE_API, 240),
+    esperarResponder(TESTE_FRONT, 240),
   ]);
-  if (!apiOk) return falhar("A API não respondeu em 30 segundos.");
-  if (!frontOk) return falhar("A interface não respondeu em 30 segundos.");
+  if (!apiOk) return falhar("A API não respondeu em 2 minutos.", path.join(pastaLogs(), "api.log"));
+  if (!frontOk) {
+    return falhar("A interface não respondeu em 2 minutos.", path.join(pastaLogs(), "interface.log"));
+  }
 
-  criarJanela();
+  criarJanela(c);
+}
+
+// Fechar: para a API e a interface, depois desliga o banco de forma limpa.
+// O before-quit é síncrono, então segura a saída (preventDefault) até o
+// banco terminar, e só então sai de verdade.
+let saidaLiberada = false;
+function aoSair(evento) {
+  if (saidaLiberada) return;
+  evento.preventDefault();
+  if (encerrando) return;
+  encerrando = true;
+  encerrarFilhos();
+  Promise.resolve(banco?.parar()).finally(() => {
+    saidaLiberada = true;
+    app.quit();
+  });
 }
 
 // Portas fixas: duas cópias do app brigariam por elas. A segunda só traz
@@ -297,7 +446,9 @@ if (!app.requestSingleInstanceLock()) {
       janela.focus();
     }
   });
-  app.on("before-quit", encerrarFilhos);
+  app.on("before-quit", aoSair);
   app.on("window-all-closed", () => app.quit());
-  app.whenReady().then(iniciar);
+  app.whenReady().then(() =>
+    iniciar().catch((erro) => falhar(`Erro inesperado ao abrir o OEF:\n${erro?.stack ?? erro}`)),
+  );
 }

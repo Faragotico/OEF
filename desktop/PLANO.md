@@ -7,6 +7,45 @@ Vários gestores na mesma máquina e no mesmo banco, cada um com login próprio 
 próprias escalas. Depois de entregue, mudanças = novo build + instalar por cima (dados ficam
 em `%APPDATA%/OEF` e não se perdem).
 
+## Passo 5 feito — instalador gerado (falta testar em PC/VM limpo)
+- `pnpm instalador` = `pnpm build` + `pnpm pacote` + `electron-builder --win nsis`. Saída:
+  `desktop/dist-instalador/OEF-Setup-1.0.0.exe` (~145 MB). `win-unpacked/OEF.exe` testa sem instalar.
+- `scripts/preparar-pacote.js` monta `desktop/pacote` (vai INTEIRA para resources/):
+  frontend = standalone sem node_modules + `npm install` (next/react); backend = dist/src, schema,
+  migrações + `npm install --omit=dev` com versões exatas + CLI do prisma + `prisma generate`;
+  postgres = binários (sem wx*.dll); icone.png. Sem `.env` nenhum.
+- Lições: o pnpm faz node_modules de links (no PC do gestor apontariam para o nada) → reinstalar
+  com npm; o electron-builder descarta o node_modules da RAIZ de cada extraResources → copiar
+  `pacote` inteiro; filtro `**/*` ignora `.next` → sem filtro.
+- Primeira abertura depois de instalar/buildar pode levar 25-30 s na API (antivírus examinando
+  arquivos novos): espera de até 2 min e aviso na janelinha.
+- Sem assinatura de código: o Windows mostra SmartScreen ("Executar assim mesmo").
+- Melhorias futuras: empacotar o backend num arquivo só (menos arquivos = abre mais rápido),
+  asar, ícone .ico próprio.
+
+## Passo 4 (parte do instalador) feito — falta o teste do usuário na tela
+- Primeiro acesso: `GET /auth/situacao` (público, só sim/não) e `POST /auth/primeiro-acesso`
+  (público, cria o 1º gestor e já entra; recusa com 409 se já houver qualquer usuário — conferência
+  e criação na mesma transação serializável). Tela `/primeiro-acesso`; o login manda para ela
+  quando o banco está vazio. Campo de senha com "Mostrar" virou componente (`campo-senha.tsx`).
+- Desktop apaga os cookies a cada abertura (o próximo gestor não entra logado como o anterior).
+- FICOU PARA DEPOIS (não impede o instalador): cadastro de mais gestores pela tela e cada gestor
+  ver só as próprias escalas (`usuarioId` em Escala).
+
+## Passo 3 feito (falta o teste do usuário abrindo o app)
+- `banco.js`: Postgres 18 embutido (pacote `@embedded-postgres/windows-x64`, só os binários),
+  controlado por `pg_ctl` (não pela lib `embedded-postgres`, que desliga com taskkill /f).
+  Dados em `%APPDATA%OEFpostgresdata`, senha aleatória em `postgressenha.txt`, porta 54329
+  só em 127.0.0.1, ordenação ICU pt-BR. initdb na 1ª vez; servidor que sobrou de queda é
+  desligado e religado; desliga com `-m fast` ao fechar.
+- `main.js`: `app.setName("OEF")` (+ `productName`) fixa a pasta de dados. Ordem: banco →
+  `prisma migrate deploy` (toda abertura) → API e interface → janela. Janelinha "Abrindo…".
+  Logs em `%APPDATA%OEFlogs` (postgres, migracao, api, interface); erro mostra as últimas linhas.
+- `filho.js`: canal IPC com cada filho; se o app cair, a API e a interface morrem junto.
+- Banco embutido começa VAZIO: com o app aberto, `pnpm banco:usuario` e `pnpm banco:cenarios`.
+- Testado por roteiro (não pela janela): criação do zero (~7 s), migrações, API via filho.js,
+  queda do pai (API morre junto, banco reabre normal).
+
 ## Passo 2 feito e testado (front + back sobem juntos no desktop)
 - `main.js` sobe também `backend/dist/src/main.js` (dist/src porque o tsconfig compila
   prisma/ e scripts/) como filho, com `NODE_ENV=production`, `PORT=3001`, `HOST=127.0.0.1`,

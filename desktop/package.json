@@ -1,5 +1,6 @@
 {
   "name": "oef-desktop",
+  "productName": "OEF",
   "version": "1.0.0",
   "private": true,
   "description": "OEF Sistema — Organizador de Escalas de Funcionários (versão desktop)",
@@ -10,10 +11,50 @@
     "build": "pnpm back:build && pnpm front:build",
     "start": "electron .",
     "dev": "electron . --dev",
-    "ajuda:fotos": "electron scripts/capturar-ajuda.js"
+    "ajuda:fotos": "electron scripts/capturar-ajuda.js",
+    "banco:usuario": "node scripts/banco.js usuario",
+    "banco:cenarios": "node scripts/banco.js cenarios",
+    "pacote": "node scripts/preparar-pacote.js",
+    "instalador": "pnpm build && pnpm pacote && electron-builder --win nsis"
   },
   "devDependencies": {
+    "@embedded-postgres/windows-x64": "18.6.0-beta.19",
     "electron": "^45.2.2",
     "electron-builder": "^26.18.0"
+  },
+  "build": {
+    "appId": "br.com.oef.sistema",
+    "productName": "OEF",
+    "copyright": "OEF — Organizador de Escalas de Funcionários",
+    "asar": false,
+    "directories": {
+      "output": "dist-instalador"
+    },
+    "files": [
+      "main.js",
+      "banco.js",
+      "filho.js",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "pacote",
+        "to": "."
+      }
+    ],
+    "win": {
+      "target": "nsis",
+      "icon": "pacote/icone.png"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "OEF Sistema",
+      "artifactName": "OEF-Setup-${version}.exe",
+      "deleteAppDataOnUninstall": false
+    }
   }
 }
